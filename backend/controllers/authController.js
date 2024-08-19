@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const ErrorResponse = require('../utils/errorResponse');
 const passport = require('passport');
-
+ 
 // Register a new user
 exports.register = async (req, res, next) => {
     const { firstname, lastname, email, password, role, phone, address, company_name, isVerified } = req.body;
@@ -192,13 +192,19 @@ exports.googleAuth = passport.authenticate('google', {
 });
 
 // Google callback
-exports.googleCallback = (req, res, next) => {
-    passport.authenticate('google', { failureRedirect: '/' }, (err, user, info) => {
-        if (err) return next(err);
-        if (!user) return res.redirect('/');
-        req.logIn(user, (err) => {
-            if (err) return next(err);
-            res.redirect('/dashboard'); // Redirect to a dashboard or another page after login
-        });
-    })(req, res, next);
+
+exports.facebookAuth = passport.authenticate('facebook');
+
+// Handle callback from Facebook
+exports.googleCallback = (req, res) => {
+    res.redirect('/');
+  };
+  
+  exports.facebookCallback = (req, res) => {
+    res.redirect('/');
+  }
+
+// Redirect after successful authentication
+exports.redirectToProfile = (req, res) => {
+    res.redirect('/');
 };
