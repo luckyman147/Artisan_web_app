@@ -45,12 +45,12 @@ export default function UserTypeSelection({ open, onClose }: UserTypeSelectionPr
   };
 
   const handleClientClick = () => {
-    setSelectedCard('client');
+    setSelectedCard('user');
   };
 
   const handleContinueClick = () => {
     if (selectedCard) {
-      const role = selectedCard === 'artisan' ? 'Artisan' : 'Client';  
+      const role = selectedCard === 'artisan' ? 'artisan' : 'user';  
       dispatch(setUserRole(role));
       navigate("/register")
       
@@ -94,7 +94,7 @@ export default function UserTypeSelection({ open, onClose }: UserTypeSelectionPr
             <Grid item>
               <StyledCard 
                 onClick={handleClientClick} 
-                selected={selectedCard === 'client'}
+                selected={selectedCard === 'user'}
               >
                 <CardContent>
                   <img src={clientType} alt="Client Icon" style={{ width: '100px', height: '100px' }} />

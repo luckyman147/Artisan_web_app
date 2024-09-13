@@ -48,6 +48,7 @@ export default function ForgotPassword() {
         bgcolor: 'background.paper',
         boxShadow: 3,
         borderRadius: 2,
+        margin: 'auto',
       }}
     >
       {/* Snackbar for success message */}
@@ -101,7 +102,6 @@ export default function ForgotPassword() {
           Send
         </Button>
       </form>
-
     </Box>
   );
 }

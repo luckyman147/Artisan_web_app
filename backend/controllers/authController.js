@@ -1,13 +1,10 @@
-const User = require('../models/User');
-const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
-const crypto = require('crypto');
-const bcrypt = require('bcryptjs');
-const ErrorResponse = require('../utils/errorResponse');
-const passport = require('passport');
- 
-// Register a new user
-exports.register = async (req, res, next) => {
+import User from '../models/User.js';
+import jwt from 'jsonwebtoken';
+import nodemailer from 'nodemailer';
+import crypto from 'crypto';
+import ErrorResponse from '../utils/errorResponse.js';
+
+export const register = async (req, res, next) => {
     const { firstname, lastname, email, password, role, phone, address, company_name, isVerified } = req.body;
 
     try {
@@ -56,7 +53,7 @@ exports.register = async (req, res, next) => {
 };
 
 // Verify email address
-exports.verifyEmail = async (req, res, next) => {
+export const verifyEmail = async (req, res, next) => {
     const { token } = req.params;
 
     try {
@@ -81,7 +78,7 @@ exports.verifyEmail = async (req, res, next) => {
 };
 
 // Login user
-exports.login = async (req, res, next) => {
+export const login = async (req, res, next) => {
     const { email, password } = req.body;
 
     try {
@@ -101,7 +98,9 @@ exports.login = async (req, res, next) => {
 
         res.status(200).json({
             success: true,
-            token
+            token,
+            id: user._id,
+            role : user.role
         });
     } catch (error) {
         next(error);
@@ -109,7 +108,7 @@ exports.login = async (req, res, next) => {
 };
 
 // Forgot password
-exports.forgotPassword = async (req, res, next) => {
+export const  forgotPassword = async (req, res, next) => {
     const { email } = req.body;
 
     try {
@@ -128,7 +127,7 @@ exports.forgotPassword = async (req, res, next) => {
 
         const resetUrl = `${process.env.BASE_URL}/api/auth/resetpassword/${resetToken}`;
 
-        const transporter = nodemailer.createTransport({
+        const transporter = nodemailer.createTransport({ 
             service: process.env.EMAIL_SERVICE,
             auth: {
                 user: process.env.EMAIL_USER,
@@ -155,7 +154,7 @@ exports.forgotPassword = async (req, res, next) => {
 };
 
 // Reset password
-exports.resetPassword = async (req, res, next) => {
+export const resetPassword = async (req, res, next) => {
     const { token } = req.params;
     const { password } = req.body;
 
@@ -186,25 +185,106 @@ exports.resetPassword = async (req, res, next) => {
     }
 };
 
-// Google authentication
-exports.googleAuth = passport.authenticate('google', {
-    scope: ['profile', 'email']
-});
 
-// Google callback
 
-exports.facebookAuth = passport.authenticate('facebook');
+export const googleCallback = async (req, res) => {
+    const user = req.user;
+    if (!user.password) {
+        user.password = null; // Ne pas stocker de mot de passe pour les connexions sociales
+    }
+    await user.save();
+    const data = ({ token: generateToken(user), id: user._id});
+    res.redirect(`http://localhost:5173/products?token=${data.token}&id=${data.id}`);
+};
 
-// Handle callback from Facebook
-exports.googleCallback = (req, res) => {
-    res.redirect('/');
+// Facebook callback
+export const facebookCallback = async (req, res) => {
+    const user = req.user;
+    if (!user.password) {
+        user.password = null; // Ne pas stocker de mot de passe pour les connexions sociales
+    }
+    await user.save();
+    const data = ({ token: generateToken(user), id: user._id }); 
+    res.redirect(`http://localhost:5173/products?token=${data.token}&id=${data.id}`);
+
+};
+// Fonction pour générer un token JWT
+const generateToken = (user) => {
+    return jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+};
+
+export const resendVerificationEmail = async (req, res, next) => {
+    const { email } = req.body;
+
+    try {
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            return next(new ErrorResponse('User not found', 404));
+        }
+
+        if (user.isVerified) {
+            return next(new ErrorResponse('Email already verified', 400));
+        }
+
+        const verificationToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+            expiresIn: '1d'
+        });
+
+        const verificationUrl = `${process.env.BASE_URL}/api/auth/verify/${verificationToken}`;
+
+        const transporter = nodemailer.createTransport({
+            service: process.env.EMAIL_SERVICE,
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS
+            }
+        });
+
+        const message = {
+            from: process.env.EMAIL_USER,
+            to: user.email,
+            subject: 'Verify Your Email',
+            text: `Please click the following link to verify your email: ${verificationUrl}`
+        };
+
+        await transporter.sendMail(message);
+
+        res.status(200).json({
+            success: true,
+            message: 'Verification email resent'
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// controllers/authController.js
+export const getMe = async (req, res) => {
+    try {
+      const userId = req.params.id;      
+      const user = await User.findById(userId).select('-password');
+      if (!user) {
+        return res.status(404).json({ message: 'Utilisateur non trouvé' });
+      }
+      res.json(user);
+    } catch (error) {
+      console.error('Erreur dans getMe:', error.message);
+      res.status(500).send('Erreur serveur');
+    }
   };
   
-  exports.facebookCallback = (req, res) => {
-    res.redirect('/');
-  }
-
-// Redirect after successful authentication
-exports.redirectToProfile = (req, res) => {
-    res.redirect('/');
-};
+  export const getArtisan = async (req, res) => {
+    try {
+      const userId = req.params.id;      
+      const user = await User.find({role :"artisan"}).select('-password');
+      if (!user) {
+        return res.status(404).json({ message: 'Utilisateur non trouvé' });
+      }
+      res.json(user);
+    } catch (error) {
+      console.error('Erreur dans getMe:', error.message);
+      res.status(500).send('Erreur serveur');
+    }
+  };
+  

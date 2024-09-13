@@ -1,16 +1,23 @@
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
 
 const UserSchema = new mongoose.Schema({
   firstname: { type: String, required: true },
   lastname: { type: String, required: true },
   password: { type: String, required: true },
-  role: { type: ['Artisan', 'Client'], default: 'Client' },
+  role: {
+    type: String,
+    enum: ['user', 'artisan'], 
+    default: 'user'           
+  },
   email: { type: String, required: true, unique: true },
   phone: { type: Number },
   facebookId: { type: String },
-  googleId: { type: String },
+  googleId: { type: String},
   adress: { type: String},
+  shopDescription: { type: String},
+  registrationDate: { type: Date, default: Date.now },
+
   company_name: { type: String },
   isVerified: { type: Boolean, default: false },
   resetPasswordToken: String,
@@ -32,4 +39,5 @@ UserSchema.methods.matchPassword = async function (enteredPassword) {
 
 const User = mongoose.model('User', UserSchema);
 
-module.exports = User;
+export default User;
+ 

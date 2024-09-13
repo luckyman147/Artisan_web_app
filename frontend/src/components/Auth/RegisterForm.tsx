@@ -15,12 +15,13 @@ import { FcGoogle } from "react-icons/fc";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
 import { useForm, Controller } from "react-hook-form";
-import { useAppSelector } from "../../stores/storeHooks";
+import { useAppDispatch, useAppSelector } from "../../stores/storeHooks";
 import { RootState } from "../../stores/store";
 import { Register } from "../../apis/action";
 import { UserRegister } from "../../apis/interfaces";
-import { useNavigate } from "react-router-dom";
 import back from "../../assets/images/blob-scene-haikei.svg";
+import { setUserEmail } from "../../stores/slice/userTypeSlice";
+import CheckEmail from "./CheckEmail";
 
 export const Facebook02Icon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg
@@ -54,8 +55,9 @@ export default function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState<string>("");
   const { handleSubmit, control } = useForm<UserRegister>();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const role = useAppSelector(userRole);
-  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
 
   const handleShowPassword = () => {
     setShowPassword(!showPassword);
@@ -74,10 +76,10 @@ export default function RegisterForm() {
         data.company_name,
         role
       );
-
+      dispatch(setUserEmail(data.email));
       if (result) {
         console.log("Registration successful:", result);
-        navigate("/login");
+        setIsDialogOpen(true);
       } else {
         console.error("Registration failed");
       }
@@ -93,6 +95,7 @@ export default function RegisterForm() {
   const handleGoogleLogin = () => {
     window.open(import.meta.env.VITE_AUTH_GooGle, "_self");
   };
+
   return (
     <Grid
       container
@@ -108,6 +111,7 @@ export default function RegisterForm() {
         backgroundPosition: "center",
       }}
     >
+      <CheckEmail open={isDialogOpen} onClose={() => setIsDialogOpen(false)} />
       <Grid item xs={12} md={6} lg={4}>
         <Box
           sx={{
@@ -140,7 +144,7 @@ export default function RegisterForm() {
             </Link>
           </Typography>
           <form onSubmit={handleSubmit(onSubmit)}>
-            <Grid container spacing={0.5} sx={{ width: "100%", mb: 1 }}>
+            <Grid container spacing={0.5} sx={{ width: "100%", mb: 0 }}>
               <Grid item xs={12} sm={6}>
                 <Controller
                   name="firstname"
@@ -233,7 +237,7 @@ export default function RegisterForm() {
                 )}
               />
             </Box>
-            {role !== "Client" && (
+            {role !== "user" && (
               <Box sx={{ width: "100%", mb: 1 }}>
                 <Controller
                   name="company_name"
@@ -252,7 +256,7 @@ export default function RegisterForm() {
                 />
               </Box>
             )}
-            <Box sx={{ width: "100%", mb: 2 }}>
+            <Box sx={{ width: "100%", mb: 1 }}>
               <Controller
                 name="password"
                 control={control}
@@ -282,7 +286,7 @@ export default function RegisterForm() {
             <Button type="submit" variant="contained" color="primary" fullWidth>
               Register
             </Button>
-            {role !== "Artisan" && (
+            {role !== "artisan" && (
               <Box
                 sx={{
                   display: "flex",
@@ -302,7 +306,7 @@ export default function RegisterForm() {
                 <Divider sx={{ flexGrow: 1, borderColor: "text.secondary" }} />
               </Box>
             )}
-            {role !== "Artisan" && (
+            {role !== "artisan" && (
               <Grid container spacing={2} justifyContent="center">
                 <Grid item>
                   <Button

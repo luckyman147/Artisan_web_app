@@ -10,59 +10,10 @@
 html, body {
   font-family: Arial, sans-serif;
   line-height: 1.6;
+  min-width: auto;
+  max-width: "100%";
 }
 
-/* Responsive typography */
-h1, h2, h3, h4, h5, h6 {
-  margin: 0 0 0.5em 0;
-}
-
-p {
-  margin: 0 0 1em 0;
-}
-
-/* Container for responsive layout */
-.container {
-  width: 90%;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-/* Flexbox grid for responsive design */
-.row {
-  display: flex;
-  flex-wrap: wrap;
-}
-
-.col {
-  flex: 1;
-  padding: 15px;
-}
-
-/* Responsive columns */
-@media (min-width: 576px) {
-  .col-sm {
-    flex: 0 0 50%;
-  }
-}
-
-@media (min-width: 768px) {
-  .col-md {
-    flex: 0 0 33.33%;
-  }
-}
-
-@media (min-width: 992px) {
-  .col-lg {
-    flex: 0 0 25%;
-  }
-}
-
-@media (min-width: 1200px) {
-  .col-xl {
-    flex: 0 0 20%;
-  }
-}
 
 /* Utility classes for margins and paddings */
 .mt-1 { margin-top: 0.5rem; }
@@ -85,4 +36,8 @@ p {
 
 @media (min-width: 769px) {
   /* Styles for desktops */
+}
+.css-7n15lh-MuiContainer-root {
+  padding-left: 0px !important;
+  padding-right: 0px !important;
 }

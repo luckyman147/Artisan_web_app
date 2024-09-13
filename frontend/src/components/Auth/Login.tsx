@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Button,
   Checkbox,
@@ -22,7 +22,6 @@ import { useAppDispatch } from "../../stores/storeHooks";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { setLogin, userLogin } from "../../stores/slice/userSlice";
-import { setAccesToken } from "../../apis/axiosConfig";
 import { UserConnectForm } from "../../apis/interfaces";
 import back from "../../assets/images/blob-scene-haikei login.svg";
 import ForgotPassword from "./ForgotPassword";
@@ -56,9 +55,13 @@ export default function Login() {
 
       if (data) {
         dispatch(setLogin(data));
-        setAccesToken(data.token);
-        console.log(data.user);
-        // navigate("/");
+        console.log(data,"loginnnn");        
+        if(data.role === "user"){
+           navigate("/products");
+        }else if(data.role === "artisan"){
+           navigate("/dashboard");
+        }
+       
       } else {
         setError("Username or password incorrect!");
         setIsError(true);
@@ -77,6 +80,23 @@ export default function Login() {
   const handleGoogleLogin = () => {
     window.open(import.meta.env.VITE_AUTH_GooGle, "_self");
   };
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    const id = urlParams.get('id');
+
+    if (token && id) {
+      dispatch(setLogin({
+        token: token,
+        id: id,
+        isVerified: true,
+        role: "user",
+      }));
+      navigate('/home')
+    }
+  }, [dispatch]);
+
 
   const handleOpenForgotPassword = () => setOpenForgotPassword(true);
   const handleCloseForgotPassword = () => setOpenForgotPassword(false);
@@ -296,3 +316,5 @@ export default function Login() {
     </Grid>
   );
 }
+
+

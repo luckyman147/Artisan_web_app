@@ -1,5 +1,3 @@
-// utils/errorResponse.js
-
 class ErrorResponse extends Error {
     constructor(message, statusCode) {
         super(message);
@@ -8,5 +6,4 @@ class ErrorResponse extends Error {
         Error.captureStackTrace(this, this.constructor);
     }
 }
-
-module.exports = ErrorResponse;
+export default ErrorResponse;
