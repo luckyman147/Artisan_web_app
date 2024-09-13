@@ -3,6 +3,7 @@ import { persistStore, persistReducer } from 'redux-persist';
 import storage from 'redux-persist/lib/storage'; 
 import userReducer from './slice/userSlice';
 import userTypeReducer from './slice/userTypeSlice';
+import listsReducer from "./slice/listsSlice";
 
 
 // Persist configuration
@@ -16,6 +17,7 @@ const persistConfig = {
 const rootReducer = combineReducers({
   user: userReducer,
   userType: userTypeReducer,
+  lists: listsReducer,
 });
 
 // Create a persisted reducer

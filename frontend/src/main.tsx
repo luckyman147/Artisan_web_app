@@ -5,6 +5,8 @@ import './index.css'
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react'; 
 import { store, persistor } from './stores/store';
+import "slick-carousel/slick/slick.css";
+import "slick-carousel/slick/slick-theme.css";
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

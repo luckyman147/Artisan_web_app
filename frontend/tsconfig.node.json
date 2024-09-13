@@ -16,7 +16,11 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "paths": {
+      "@mui/*": ["node_modules/@mui/*"]
+    }
+    
   },
   "include": ["vite.config.ts"]
 }
