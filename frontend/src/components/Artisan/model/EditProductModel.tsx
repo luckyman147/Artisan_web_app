@@ -1,10 +1,21 @@
 import * as React from "react";
-import { Box, Button, TextField, Typography, Modal, Grid } from "@mui/material";
-import { Product } from "../../apis/interfaces";
+import {
+  Box,
+  Button,
+  TextField,
+  Typography,
+  Modal,
+  Grid,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  CircularProgress,
+} from "@mui/material";
+import { Product, Category } from "../../../apis/interfaces";
 import { useState, useEffect } from "react";
-import { editProduct } from "../../apis/action";
-import { RootState } from "../../stores/store";
-import { useAppSelector } from "../../stores/storeHooks";
+import { editProduct, getAllcategories } from "../../../apis/action";
+
 
 interface ProductModalProps {
   open: boolean;
@@ -20,13 +31,17 @@ export default function EditProductModal({
   product,
 }: ProductModalProps) {
   const [name, setName] = useState<string>(product?.name || "");
-  const [description, setDescription] = useState<string>(
-    product?.description || ""
-  );
+  const [description, setDescription] = useState<string>(product?.description || "");
   const [price, setPrice] = useState<number | string>(product?.price || "");
   const [imageUrl, setImageUrl] = useState<string>(product?.photos[0] || "");
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const token = useAppSelector((state: RootState) => state.user.userInfos.token);
+  const [category, setCategory] = useState<string>(product?.category?._id || "");
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState<boolean>(true);
+  const [promo, setPromo] = useState<boolean>(product?.promo || false);
+  const [discountPercentage, setDiscountPercentage] = useState<number | string>(product?.discountPercentage || "");
+  const [size, setSize] = useState<string>(product?.size || "");
+  const [stock, setStock] = useState<number | string>(product?.stock || "");
 
   useEffect(() => {
     if (product) {
@@ -34,31 +49,54 @@ export default function EditProductModal({
       setDescription(product.description || "");
       setPrice(product.price || "");
       setImageUrl(product.photos[0] || "");
+      setCategory(product.category?._id || ""); 
+      setPromo(product.promo || false);
+      setDiscountPercentage(product.discountPercentage || "");
+      setSize(product.size || "");
+      setStock(product.stock || "");
     }
   }, [product]);
+
+  useEffect(() => {
+    const fetchAllCategories = async () => {
+      setLoadingCategories(true);
+      try {
+        const data: Category[] | undefined = await getAllcategories();
+        if (data) {
+          setCategories(data);
+        }
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+
+    fetchAllCategories();
+  }, []);
 
   const handleEditProduct = async () => {
     if (!product) return;
 
-    // Create a FormData object
     const formData = new FormData();
     formData.append("name", name);
     formData.append("description", description);
     formData.append("price", price.toString());
-
+    formData.append("category", category);
+    formData.append("stock", stock.toString());
+    formData.append("size", size);
+    formData.append("promo", promo.toString());
+    formData.append("discountPercentage", discountPercentage.toString());
     if (imageFile) {
-      console.log(imageFile,"testttimage");
-      
-      formData.append("photos", imageFile); 
+      formData.append("photos", imageFile);
     } else if (imageUrl) {
       formData.append("photos", imageUrl);
     }
 
     try {
-      const response = await editProduct(product._id, formData, token);
-
+      const response = await editProduct(product._id, formData);
       if (response) {
-        onSave(response); 
+        onSave(response);
         onClose();
       } else {
         console.error("Failed to update product");
@@ -81,6 +119,7 @@ export default function EditProductModal({
       reader.readAsDataURL(file);
     }
   };
+console.log(product?.category.name, "catt");
 
   return (
     <Modal
@@ -96,7 +135,7 @@ export default function EditProductModal({
           left: "50%",
           transform: "translate(-50%, -50%)",
           width: "80%",
-          maxWidth: "800px",
+          maxWidth: "10000px",
           bgcolor: "background.paper",
           boxShadow: 24,
           p: 4,
@@ -114,11 +153,11 @@ export default function EditProductModal({
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",
-                height: "200px",
+                height: "80%",
                 border: "1px solid #ddd",
                 borderRadius: "8px",
                 overflow: "hidden",
-                backgroundColor: "#f5f5f5",
+                backgroundColor: "#f5f5f5"
               }}
             >
               {imageUrl ? (
@@ -129,7 +168,7 @@ export default function EditProductModal({
                 />
               ) : (
                 <Typography variant="body2" color="textSecondary">
-                  No Image
+                  No image selected
                 </Typography>
               )}
             </Box>
@@ -178,12 +217,80 @@ export default function EditProductModal({
               onChange={(e) => setPrice(e.target.value)}
             />
 
+            {/* Category Selection */}
+            <FormControl fullWidth margin="normal" variant="outlined">
+              <InputLabel>Category</InputLabel>
+              <Select
+                value={category}
+                onChange={(e) => setCategory(e.target.value as string)}
+                label="Category"
+                disabled={loadingCategories}
+              >
+                {loadingCategories ? (
+                  <MenuItem value="">
+                    <CircularProgress size={24} />
+                  </MenuItem>
+                ) : (
+                  categories.map((cat) => (
+                    <MenuItem key={cat._id} value={cat._id}>
+                      {cat.name}
+                    </MenuItem>
+                  ))
+                )}
+              </Select>
+            </FormControl>
+
+            {/* Promo Toggle */}
+            <FormControl fullWidth margin="normal" variant="outlined">
+              <InputLabel>Promo</InputLabel>
+              <Select
+                value={promo ? "Yes" : "No"}
+                onChange={(e) => setPromo(e.target.value === "Yes")}
+                label="Promo"
+              >
+                <MenuItem value="Yes">Yes</MenuItem>
+                <MenuItem value="No">No</MenuItem>
+              </Select>
+            </FormControl>
+
+            {/* Discount Percentage */}
+            <TextField
+              fullWidth
+              label="Discount Percentage"
+              margin="normal"
+              variant="outlined"
+              type="number"
+              value={discountPercentage}
+              onChange={(e) => setDiscountPercentage(e.target.value)}
+            />
+
+            {/* Size */}
+            <TextField
+              fullWidth
+              label="Size"
+              margin="normal"
+              variant="outlined"
+              value={size}
+              onChange={(e) => setSize(e.target.value)}
+            />
+
+            {/* Stock */}
+            <TextField
+              fullWidth
+              label="Stock"
+              margin="normal"
+              variant="outlined"
+              type="number"
+              value={stock}
+              onChange={(e) => setStock(e.target.value)}
+            />
+
             <Box sx={{ mt: 2, display: "flex", justifyContent: "flex-end" }}>
-              <Button variant="contained" onClick={handleEditProduct}>
-                Save
-              </Button>
-              <Button variant="outlined" onClick={onClose} sx={{ ml: 2 }}>
+              <Button onClick={onClose} color="inherit" sx={{ mr: 1 }}>
                 Cancel
+              </Button>
+              <Button onClick={handleEditProduct} variant="contained">
+                Save Changes
               </Button>
             </Box>
           </Grid>

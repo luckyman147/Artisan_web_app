@@ -1,7 +1,7 @@
 // routes/productRoutes.js
 import express from 'express';
-import {createProduit, getProduits, getProduitById,updateProduitById ,deleteProduitById , getProductsByArtisanId} from '../controllers/ProductController.js';
-import  upload  from '../middlewares/uploadPhoto.js';
+import {createProduit, getProduits, getProduitById,updateProduitById ,deleteProduitById , getProductsByArtisanId,getFeaturedProducts} from '../controllers/ProductController.js';
+import  {upload}  from '../middlewares/uploadPhoto.js';
 import { checkAuth, isArtisan } from '../middlewares/auth.js';
 
 
@@ -12,6 +12,8 @@ router.post('/', checkAuth, isArtisan, upload.array('photos'), createProduit);
 
 // Autres routes pour obtenir, mettre à jour, supprimer les produits
 router.get('/', getProduits);
+router.get('/featured_products', getFeaturedProducts);
+
 router.get('/:id', getProduitById);
 router.put('/:id', checkAuth, isArtisan, upload.array('photos'), updateProduitById);
 router.delete('/:id', checkAuth, isArtisan, deleteProduitById);

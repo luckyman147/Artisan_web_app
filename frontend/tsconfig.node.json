@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2023"],
+    "lib": ["ES2023", "DOM"], // Include "DOM" for React web projects
     "module": "ESNext",
     "skipLibCheck": true,
 
@@ -17,10 +17,17 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
+
+    /* Enable JSX */
+    "jsx": "react-jsx",
+
+    /* Paths for aliases */
+    "baseUrl": ".",
     "paths": {
+      "@/*": ["src/*"], 
       "@mui/*": ["node_modules/@mui/*"]
     }
-    
   },
-  "include": ["vite.config.ts"]
+  "include": ["vite.config.ts", "src/**/*"],
+  "exclude": ["node_modules"]
 }

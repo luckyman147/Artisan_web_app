@@ -13,78 +13,103 @@ import {
   IconButton,
 } from "@mui/material";
 import Layout from "./layout/Layout";
-import { deleteWishList, getWishListById } from "../apis/action";
 import { useAppDispatch, useAppSelector } from "../stores/storeHooks";
 import { RootState } from "../stores/store";
-import { Product, wishlists } from "../apis/interfaces";
+import { CartProductResponse, Product } from "../apis/interfaces";
 import CustomBreadcrumbs from "./layout/Breadcrumbs";
-import { setWishlist } from "../stores/slice/listsSlice";
+import {
+  clearWishlist,
+  removeProductFromWishlist,
+} from "../stores/slice/wishSlice";
 import DeleteIcon from "@mui/icons-material/Delete";
+import { addProductToCart } from "../stores/slice/cartSlice";
+import {
+  addCart,
+  deleteAllWishList,
+  deleteWishList,
+  fetchProductById,
+} from "../apis/action";
 
 const breadcrumbItems = [{ label: "Home", href: "/" }, { label: "WishList" }];
 
 const Wishlist = () => {
-  const id = useAppSelector((state: RootState) => state.user.userInfos.id);
-  const [wishlists, setWishlists] = useState<wishlists[] | null>(null);
-  const [productLimit, setProductLimit] = useState<number>(10);
+  const wishlists = useAppSelector((state: RootState) => state.wish.products);
   const dispatch = useAppDispatch();
+  const user = useAppSelector((state: RootState) => state.user.userInfos.id);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productLimit, setProductLimit] = useState<number>(10);
 
   useEffect(() => {
-    const fetchWishlist = async (userId: string) => {
+    const fetchWishlistProducts = async () => {
       try {
-        const wishlistData = await getWishListById(userId);
-        if (wishlistData) {
-          
-          setWishlists(wishlistData);
-          const wishlength = wishlistData.reduce(
-            (acc, wishlist) => acc + (wishlist.products?.length || 0),
-            0
-          );
-          dispatch(setWishlist(wishlength));
-          console.log(wishlistData, "Wishlist fetched");
-        }
+        const productPromises = wishlists.map((item) =>
+          fetchProductById(item.productId)
+        );
+        const productResponses: (Product | undefined)[] = await Promise.all(
+          productPromises
+        );
+        const validProducts = productResponses.filter(
+          (product): product is Product => product !== undefined
+        );
+        setProducts(validProducts);
       } catch (error) {
-        console.error("Error fetching wishlist:", error);
+        console.error("Failed to fetch products by IDs:", error);
       }
     };
 
-    if (id) {
-      fetchWishlist(id);
-    }
-  }, [id, dispatch]);
+    fetchWishlistProducts();
+  }, [wishlists]);
 
-  const handleDeleteProduct = async (productId: string, clientId: string) => {
+  const handleDeleteProduct = async (productId: string) => {
     try {
-      // Call API to delete the product from the wishlist
-      await deleteWishList(productId, clientId);
-  
-      // Update the local state after deletion
-      setWishlists((prevWishlists) =>
-        prevWishlists
-          ? prevWishlists.map((wishlist) =>
-              wishlist.products
-                ? {
-                    ...wishlist,
-                    products: wishlist.products.filter(
-                      (product: Product) => product._id !== productId
-                    ),
-                  }
-                : wishlist
-            )
-          : null
-      );
-  
-      // Recalculate and update the wishlist length in the global state
-      const updatedWishlistData = await getWishListById(id!);
-      const wishlength = updatedWishlistData?.reduce(
-        (acc, wishlist) => acc + (wishlist.products?.length || 0),
-        0
-      );  
-      if (wishlength !== undefined) {
-        dispatch(setWishlist(wishlength));
+      dispatch(removeProductFromWishlist(productId));
+      if (user) {
+        await deleteWishList(productId, user);
       }
     } catch (error) {
-      console.error("Failed to delete product:", error);
+      console.error("Failed to delete the product from wishlist:", error);
+    }
+  };
+
+  const handleAddProductToCart = async (
+    productId: string,
+    price: number,
+    quantity: number,
+    promo: boolean,
+    discountPercentage: number
+  ) => {
+    try {
+      dispatch(
+        addProductToCart({
+          productId,
+          price,
+          quantity,
+          promo,
+          discountPercentage,
+        })
+      );
+
+      const cartProduct: CartProductResponse = {
+        productId: productId,
+        quantity: 1,
+      };
+
+      if (user) {
+        await addCart(user, [cartProduct]);
+      }
+    } catch (error) {
+      console.error("Failed to add the product to the cart:", error);
+    }
+  };
+
+  const handleClearWishList = async () => {
+    try {
+      dispatch(clearWishlist());
+      if (user) {
+        await deleteAllWishList(user);
+      }
+    } catch (error) {
+      console.error("Failed to clear the wishlist:", error);
     }
   };
 
@@ -96,129 +121,164 @@ const Wishlist = () => {
           Wishlist
         </Typography>
         {wishlists && wishlists.length > 0 ? (
-          wishlists.map((wishlist) => (
-            <Box key={wishlist._id} mb={3}>
-              <TableContainer component={Paper}>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell></TableCell>
-                      <TableCell>Image</TableCell>
-                      <TableCell>Name</TableCell>
-                      <TableCell>Price</TableCell>
-                      <TableCell>Availability</TableCell>
-                      <TableCell>Action</TableCell>
+          <Box mb={3}>
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell></TableCell>
+                    <TableCell>Image</TableCell>
+                    <TableCell>Name</TableCell>
+                    <TableCell>Price</TableCell>
+                    <TableCell>Availability</TableCell>
+                    <TableCell>Action</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {products.slice(0, productLimit).map((product: Product) => (
+                    <TableRow key={product._id}>
+                      <TableCell>
+                        <Box
+                          display="flex"
+                          justifyContent="center"
+                          alignItems="center"
+                        >
+                          <IconButton
+                            color="error"
+                            onClick={() => handleDeleteProduct(product._id)}
+                            style={{
+                              marginLeft: 0,
+                              paddingLeft: "0",
+                              marginRight: 0,
+                            }}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <img
+                          src={
+                            product.photos && product.photos.length > 0
+                              ? `${import.meta.env.VITE_API_IMAGE}${product.photos[0]}`
+                              : "/default-image.jpg"
+                          }
+                          alt={product.name}
+                          style={{
+                            width: "150px",
+                            height: "150px",
+                            objectFit: "cover",
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>{product.name}</TableCell>
+                      <TableCell>
+                        {product.promo && product.discountPercentage ? (
+                          <>
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{
+                                textDecoration: "line-through",
+                                fontSize: "0.9rem",
+                                display: "inline",
+                                marginRight: 1,
+                              }}
+                            >
+                              {product.price.toFixed(2)} TND
+                            </Typography>
+                            <Typography
+                              variant="h6"
+                              color="primary"
+                              sx={{ display: "inline" }}
+                            >
+                              {(
+                                product.price -
+                                (product.price * product.discountPercentage) /
+                                  100
+                              ).toFixed(2)}{" "}
+                              TND
+                            </Typography>
+                            <Typography
+                              variant="body2"
+                              color="error"
+                              sx={{ display: "inline", marginLeft: 1 }}
+                            >
+                              ({product.discountPercentage}% off)
+                            </Typography>
+                          </>
+                        ) : (
+                          <Typography variant="h6" color="text.primary">
+                            {product.price.toFixed(2)} TND
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {product.stock && product.stock > 0 ? (
+                          <Button
+                            variant="contained"
+                            color="success"
+                            size="small"
+                          >
+                            In Stock
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="contained"
+                            color="error"
+                            size="small"
+                          >
+                            Out of Stock
+                          </Button>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Box display="flex" alignItems="center">
+                          <Button
+                            variant="contained"
+                            color="primary"
+                            size="small"
+                            onClick={() =>
+                              handleAddProductToCart(
+                                product._id,
+                                product.price,
+                                1,
+                                product.promo,
+                                product.discountPercentage
+                              )
+                            }
+                          >
+                            Add to Cart
+                          </Button>
+                        </Box>
+                      </TableCell>
                     </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {wishlist.products && wishlist.products.length > 0 ? (
-                      wishlist.products
-                        .slice(0, productLimit)
-                        .map((product: Product) => (
-                          <TableRow key={product._id}>
-                            <TableCell>
-                              <Box
-                                display="flex"
-                                justifyContent="center"
-                                alignItems="center"
-                              >
-                                <IconButton
-                                  color="error"
-                                  onClick={() =>
-                                    handleDeleteProduct(
-                                      product._id,
-                                      id!
-                                    )
-                                  }
-                                  style={{
-                                    marginLeft: 0,
-                                    paddingLeft: "0",
-                                    marginRight: 0,
-                                  }}
-                                >
-                                  <DeleteIcon />
-                                </IconButton>
-                              </Box>
-                            </TableCell>
-                            <TableCell>
-                              <img
-                                src={
-                                  product.photos && product.photos.length > 0
-                                    ? `http://localhost:5000/${product.photos[0]}`
-                                    : "/default-image.jpg"
-                                }
-                                alt={product.name}
-                                style={{
-                                  width: "150px",
-                                  height: "150px",
-                                  objectFit: "cover",
-                                }}
-                              />
-                            </TableCell>
-                            <TableCell>{product.name}</TableCell>
-                            <TableCell>
-                              $
-                              {product.price
-                                ? product.price.toFixed(2)
-                                : "0.00"}
-                            </TableCell>
-                            <TableCell>
-                              {product.stock && product.stock > 0 ? (
-                                <Button
-                                  variant="contained"
-                                  color="success"
-                                  size="small"
-                                >
-                                  In Stock
-                                </Button>
-                              ) : (
-                                <Button
-                                  variant="contained"
-                                  color="error"
-                                  size="small"
-                                >
-                                  Out of Stock
-                                </Button>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <Box display="flex" alignItems="center">
-                                <Button
-                                  variant="contained"
-                                  color="primary"
-                                  size="small"
-                                >
-                                  Add to Cart
-                                </Button>
-                              </Box>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={6} align="center">
-                          No product found in the wishlist.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-              {wishlist.products.length > productLimit && (
-                <Box textAlign="center" mt={2}>
-                  <Button
-                    variant="outlined"
-                    onClick={() => setProductLimit((prev) => prev + 5)}
-                  >
-                    Show More
-                  </Button>
-                </Box>
-              )}
-            </Box>
-          ))
+                  ))}
+                </TableBody>
+              </Table>
+              <Button
+                variant="contained"
+                size="small"
+                sx={{ backgroundColor: "red", marginTop: 2 }}
+                onClick={() => handleClearWishList()}
+              >
+                Clear Wish
+              </Button>
+            </TableContainer>
+            {wishlists.length > productLimit && (
+              <Box textAlign="center" mt={2}>
+                <Button
+                  variant="outlined"
+                  onClick={() => setProductLimit((prev) => prev + 5)}
+                >
+                  Show More
+                </Button>
+              </Box>
+            )}
+          </Box>
         ) : (
           <Typography variant="h6" align="center">
-            No wishlists found.
+            No products in the wishlist.
           </Typography>
         )}
       </Box>

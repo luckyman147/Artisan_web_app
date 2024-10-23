@@ -20,50 +20,59 @@ import { ReviewsData } from "../../apis/interfaces";
 interface ReviewsProps {
   productId: string;
   onRatingUpdate: (averageRating: number) => void;
-  onUserLength: (userLength: number) => void; // Corrected prop name
+  onUserLength: (userLength: number) => void;
 }
 
-const Reviews: React.FC<ReviewsProps> = ({ productId, onRatingUpdate, onUserLength }) => {
+const Reviews: React.FC<ReviewsProps> = ({
+  productId,
+  onRatingUpdate,
+  onUserLength,
+}) => {
   const [comment, setComment] = useState<string>("");
   const [rating, setRating] = useState<number | null>(4);
   const [success, setSuccess] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [reviews, setReviews] = useState<ReviewsData[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
 
-  const clientId = useAppSelector((state: RootState) => state.user.userInfos.id);
+  const clientId = useAppSelector(
+    (state: RootState) => state.user.userInfos.id
+  );
+  const role = useAppSelector((state: RootState) => state.user.userInfos.role);
 
   useEffect(() => {
-    async function fetchReviewsById() {
+    const fetchReviewsById = async () => {
+      setLoading(true);
       try {
         const response = await getReviewsById(productId);
         if (Array.isArray(response)) {
           setReviews(response);
-          console.log(response.length, "tttlenght");
 
-          // Calculate the average rating and update it in the parent component
           const averageRating =
             response.reduce((sum, review) => sum + review.rating, 0) /
             response.length;
           onRatingUpdate(averageRating);
-
-          const userLength = response.length;
-          onUserLength(userLength); 
+          onUserLength(response.length);
         } else {
           setReviews([]);
-          onRatingUpdate(0); 
+          onRatingUpdate(0);
+          onUserLength(0);
         }
       } catch (err) {
         setError("Failed to load reviews.");
+      } finally {
+        setLoading(false);
       }
-    }
+    };
     fetchReviewsById();
-  }, [productId, onRatingUpdate, onUserLength]); 
+  }, [productId, onRatingUpdate, onUserLength]);
 
   const handleSubmit = async () => {
     if (rating === null) {
       setError("Please provide a rating.");
       return;
     }
+    setLoading(true);
     try {
       const response = await addReviews(productId, clientId!, comment, rating);
       if (response) {
@@ -78,13 +87,13 @@ const Reviews: React.FC<ReviewsProps> = ({ productId, onRatingUpdate, onUserLeng
             updatedReviews.reduce((sum, review) => sum + review.rating, 0) /
             updatedReviews.length;
           onRatingUpdate(averageRating);
-
-          const userLength = updatedReviews.length;
-          onUserLength(userLength); 
+          onUserLength(updatedReviews.length);
         }
       }
     } catch (err) {
       setError("Failed to add review.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -99,7 +108,9 @@ const Reviews: React.FC<ReviewsProps> = ({ productId, onRatingUpdate, onUserLeng
         Reviews
       </Typography>
 
-      {reviews.length > 0 ? (
+      {loading ? (
+        <Typography>Loading reviews...</Typography>
+      ) : reviews.length > 0 ? (
         <Grid container spacing={2}>
           {reviews.map((review) => (
             <Grid item xs={12} sm={6} md={4} key={review._id}>
@@ -118,7 +129,9 @@ const Reviews: React.FC<ReviewsProps> = ({ productId, onRatingUpdate, onUserLeng
                     flexDirection: "column",
                   }}
                 >
-                  <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                  <Box
+                    sx={{ display: "flex", justifyContent: "space-between" }}
+                  >
                     <Typography variant="subtitle2" color="textSecondary">
                       {new Date(review.reviewDate).toLocaleDateString()}
                     </Typography>
@@ -145,30 +158,43 @@ const Reviews: React.FC<ReviewsProps> = ({ productId, onRatingUpdate, onUserLeng
         <Typography>No reviews yet. Be the first to review!</Typography>
       )}
 
-      <Box sx={{ marginTop: 4 }}>
-        <Typography variant="h6" gutterBottom>
-          Add a Review
+      {clientId && role === "user" && (
+        <Box sx={{ marginTop: 4 }}>
+          <Typography variant="h6" gutterBottom>
+            Add a Review
+          </Typography>
+          <Rating
+            name="rating"
+            value={rating}
+            onChange={(_, newValue) => setRating(newValue as number)}
+            precision={0.5}
+            size="large"
+          />
+          <TextField
+            label="Comment"
+            multiline
+            rows={4}
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            fullWidth
+            margin="normal"
+          />
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleSubmit}
+            sx={{ marginBottom: 10 }}
+            disabled={loading}
+          >
+            Submit
+          </Button>
+        </Box>
+      )}
+      {!clientId && !role && (
+        <Typography sx={{ marginTop: 4 }}>
+          Please log in to add a review.
         </Typography>
-        <Rating
-          name="rating"
-          value={rating}
-          onChange={(_, newValue) => setRating(newValue as number)}
-          precision={0.5}
-          size="large"
-        />
-        <TextField
-          label="Comment"
-          multiline
-          rows={4}
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-          fullWidth
-          margin="normal"
-        />
-        <Button variant="contained" color="primary" onClick={handleSubmit} sx={{marginBottom : 10}}>
-          Submit
-        </Button>
-      </Box>
+      )}
 
       <Snackbar
         open={success}

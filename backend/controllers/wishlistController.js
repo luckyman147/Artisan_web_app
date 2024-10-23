@@ -1,38 +1,50 @@
-// controllers/wishlistController.js
 import Product from "../models/Product.js";
 import Wishlist from "../models/Wishlist.js";
 
 export const createWishlist = async (req, res) => {
   try {
     const { client, products } = req.body;
+    const extractedProductIds = products.map((p) =>
+      p.productId ? p.productId.productId : p
+    );
+    let productIds;
+    if (Array.isArray(extractedProductIds) && extractedProductIds.length > 1) {
+      productIds = extractedProductIds;
+    } else {
+      productIds = extractedProductIds;
+    }
 
-    // Check if a wishlist already exists for the given client
     let wishlist = await Wishlist.findOne({ client });
 
     if (wishlist) {
-      // If wishlist exists, check if the product is already in the wishlist
-      if (wishlist.products.includes(products)) {
-        return res.status(400).json({ message: "Product already in wishlist" });
+      const existingProductIds = new Set(
+        wishlist.products.map((p) => p.toString())
+      );
+
+      const newProducts = productIds.filter(
+        (productId) => !existingProductIds.has(productId.toString())
+      );
+
+      if (newProducts.length > 0) {
+        wishlist.products.push(...newProducts);
+        await wishlist.save();
       }
 
-      // Add the product to the existing wishlist
-      wishlist.products.push(products);
-      await wishlist.save();
       return res.status(200).json(wishlist);
     } else {
-      // If wishlist does not exist, create a new one with the product
       wishlist = new Wishlist({
-        products: [products],
-        client: client,
+        client,
+        products: productIds,
       });
       await wishlist.save();
       return res.status(201).json(wishlist);
     }
   } catch (error) {
-    console.error("Error adding wishlist:", error);
+    console.error("Error creating/updating wishlist:", error);
     res.status(400).json({ error: error.message });
   }
 };
+
 export const getWishlists = async (req, res) => {
   try {
     const wishlists = await Wishlist.find();
@@ -77,7 +89,7 @@ export const updateWishlist = async (req, res) => {
 export const deleteWishlist = async (req, res) => {
   try {
     const { productId, clientId } = req.params;
-    const wishlist = await Wishlist.findOne({client : clientId}); 
+    const wishlist = await Wishlist.findOne({ client: clientId });
 
     if (!wishlist) {
       return res.status(404).json({ message: "Wishlist not found" });
@@ -88,7 +100,7 @@ export const deleteWishlist = async (req, res) => {
     );
 
     if (wishlist.products.length === 0) {
-      await Wishlist.findByIdAndDelete({_id : wishlist._id});
+      await Wishlist.findByIdAndDelete({ _id: wishlist._id });
       return res
         .status(200)
         .json({ message: "Wishlist and all products deleted" });
@@ -96,8 +108,32 @@ export const deleteWishlist = async (req, res) => {
 
     await wishlist.save();
 
-    res.status(200).json({ message: "Product removed from wishlist", wishlist });
+    res
+      .status(200)
+      .json({ message: "Product removed from wishlist", wishlist });
   } catch (error) {
     res.status(400).json({ error: error.message });
+  }
+};
+
+export const deleteAllWishlist = async (req, res) => {
+  try {
+    const { clientId } = req.params; 
+    const wishlist = await Wishlist.findOne({ client: clientId });
+
+    if (!wishlist) {
+      return res.status(404).json({ message: "Wishlist not found" });
+    }
+
+    wishlist.products = [];
+
+    await Wishlist.findByIdAndDelete({ _id: wishlist._id });
+
+    return res
+      .status(200)
+      .json({ message: "Wishlist and all products deleted" });
+    
+  } catch (error) {
+    return res.status(400).json({ error: error.message });
   }
 };
