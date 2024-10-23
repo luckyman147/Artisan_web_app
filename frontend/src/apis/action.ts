@@ -1,9 +1,12 @@
 import { Axios } from "./axiosConfig";
 import {
+  AdminInfo,
   ArtisanInfo,
+  ArtisanInfoThisMonth,
+  ArtisanStatistics,
   CartItem,
   CartList,
-  CartProduct,
+  CartProductResponse,
   CartResponse,
   Category,
   DeliveryAddress,
@@ -15,6 +18,7 @@ import {
   ReviewsData,
   UserInfo,
   UserRegister,
+  UsersInfo,
   WishlistResponse,
   wishlists,
 } from "./interfaces";
@@ -45,11 +49,9 @@ export async function Register(
       }
     );
 
-    // Return the response data
     return data;
   } catch (error) {
     console.error("Error registering user:", error);
-    // Return undefined in case of error
     return undefined;
   }
 }
@@ -97,12 +99,7 @@ export async function resetPassword(
   try {
     const { data } = await Axios().put<ResetPasswordResponse>(
       `/auth/resetpassword/${resetToken}`,
-      { password },
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
+      { password }
     );
 
     return data;
@@ -141,7 +138,6 @@ export async function fetchProductByArtisanId(id: string): Promise<Product[]> {
     const response = await Axios().get<Product[]>(
       `/products/allProductByUser/${id}`
     );
-    console.log(response.data, "Fetched products");
     return response.data;
   } catch (error) {
     console.error("Unexpected error fetching products:", error);
@@ -154,33 +150,19 @@ export async function fetchProductById(
 ): Promise<Product | undefined> {
   try {
     const response = await Axios().get<Product>(`/products/${id}`);
-    console.log(response.data, "Fetched products");
     return response.data;
   } catch (error) {
     console.error("Unexpected error fetching products:", error);
   }
 }
 
-export async function addProduct(
-  productData: FormData,
-  token: string
-): Promise<Product> {
-  const axiosInstance = Axios();
-
-  axiosInstance.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-
-  console.log("Request Headers:", axiosInstance.defaults.headers);
-
+export async function addProduct(productData: FormData): Promise<Product> {
   try {
-    const response = await axiosInstance.post<Product>(
-      "/products",
-      productData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      }
-    );
+    const response = await Axios().post<Product>("/products", productData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
 
     return response.data;
   } catch (error: any) {
@@ -194,25 +176,16 @@ export async function addProduct(
 
 export async function editProduct(
   _id: string,
-  productData: FormData,
-  token: string
+  productData: FormData
 ): Promise<Product | null> {
   const axiosInstance = Axios();
-
-  axiosInstance.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
   try {
     const response = await axiosInstance.put<Product>(
       `/products/${_id}`,
-      productData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      }
+      productData
     );
 
-    // Return the updated product data
     return response.data;
   } catch (error) {
     console.error("Unexpected error updating product:", error);
@@ -220,16 +193,9 @@ export async function editProduct(
   }
 }
 
-export const deleteProduct = async (
-  productId: string,
-  token: string
-): Promise<void> => {
+export const deleteProduct = async (productId: string): Promise<void> => {
   try {
-    const response = await Axios().delete(`/products/${productId}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const response = await Axios().delete(`/products/${productId}`, {});
     console.log("Product deleted successfully:", response.data);
     return response.data;
   } catch (error: any) {
@@ -259,11 +225,7 @@ export async function addWishList(
 
 export async function getAllWishList(): Promise<wishlists | undefined> {
   try {
-    const { data }: { data: wishlists } = await Axios().get("/wishlists", {
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+    const { data }: { data: wishlists } = await Axios().get("/wishlists", {});
 
     return data;
   } catch (error) {
@@ -276,12 +238,7 @@ export async function getWishListById(
 ): Promise<wishlists[] | undefined> {
   try {
     const { data }: { data: wishlists[] } = await Axios().get(
-      `/wishlists/${id}`,
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
+      `/wishlists/${id}`
     );
 
     return data;
@@ -299,7 +256,6 @@ export const deleteWishList = async (
     const response = await Axios().delete(
       `/wishlists/${productId}/${clientId}`
     );
-    console.log("Wishlist product deleted successfully:", response.data);
     return response.data;
   } catch (error: any) {
     console.error(
@@ -309,7 +265,18 @@ export const deleteWishList = async (
     throw error;
   }
 };
-
+export const deleteAllWishList = async (clientId: string): Promise<void> => {
+  try {
+    const response = await Axios().delete(`/wishlists/${clientId}`);
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Failed to delete ALL product:",
+      error.response?.data || error.message || error
+    );
+    throw error;
+  }
+};
 export async function getAllcategories(): Promise<Category[] | undefined> {
   try {
     const { data }: { data: Category[] } = await Axios().get("/categories");
@@ -323,7 +290,7 @@ export async function getAllcategories(): Promise<Category[] | undefined> {
 
 export async function addCart(
   client: string,
-  products: CartProduct[]
+  products: CartProductResponse[]
 ): Promise<CartResponse | undefined> {
   try {
     const { data }: { data: CartResponse } = await Axios().post("/carts", {
@@ -362,11 +329,22 @@ export const deleteCartList = async (
 ): Promise<void> => {
   try {
     const response = await Axios().delete(`/carts/${clientId}/${productId}`);
-    console.log("cart list product deleted successfully:", response.data);
     return response.data;
   } catch (error: any) {
     console.error(
       "Failed to delete product:",
+      error.response?.data || error.message || error
+    );
+    throw error;
+  }
+};
+export const deleteAllCartList = async (clientId: string): Promise<void> => {
+  try {
+    const response = await Axios().delete(`/carts/${clientId}`);
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Failed to delete products:",
       error.response?.data || error.message || error
     );
     throw error;
@@ -385,7 +363,7 @@ export async function editQuantityCart(
       "Error updating product:",
       error.response?.data || error.message
     );
-    return null; // Return null or handle error appropriately
+    return null;
   }
 }
 
@@ -437,7 +415,7 @@ export async function addOrder(
     const { data }: { data: Order } = await Axios().post("/orders", {
       clientId,
       details,
-      ...(delivery_address && { delivery_address }), 
+      ...(delivery_address && { delivery_address }),
     });
     return data;
   } catch (error: any) {
@@ -450,37 +428,240 @@ export async function addOrder(
 }
 
 export async function getUserById(
-  userId: string,
-  token: string
+  userId: string
 ): Promise<UserInfo | undefined> {
   try {
-    // Make the GET request with the token in headers
-    const { data }: { data: UserInfo } = await Axios().get(`/auth/me/${userId}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const { data }: { data: UserInfo } = await Axios().get(
+      `/auth/me/${userId}`,
+      {}
+    );
     return data;
   } catch (error: any) {
-    console.error("Error fetching user:", error.response ? error.response.data : error.message);
+    console.error(
+      "Error fetching user:",
+      error.response ? error.response.data : error.message
+    );
     return undefined;
   }
 }
 
 export async function getArtisanById(
-  userId: string,
-  token: string
-): Promise<ArtisanInfo[] | undefined> {
+  userId: string
+): Promise<ArtisanInfo | undefined> {
   try {
     // Make the GET request with the token in headers
-    const { data }: { data: ArtisanInfo[] } = await Axios().get(`/auth/artisan/${userId}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const { data }: { data: ArtisanInfo } = await Axios().get(
+      `/auth/artisan/${userId}`
+    );
     return data;
   } catch (error: any) {
-    console.error("Error fetching Artisan:", error.response ? error.response.data : error.message);
+    console.error(
+      "Error fetching Artisan:",
+      error.response ? error.response.data : error.message
+    );
+    return undefined;
+  }
+}
+
+export async function fetchOrderById(id: string): Promise<Order[]> {
+  try {
+    const response = await Axios().get<Order[]>(`/orders/artisan/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error("Unexpected error fetching products:", error);
+    return [];
+  }
+}
+
+export async function editArtisanOrder(
+  id: string,
+  statut: "en cours" | "expédiée" | "livrée" | "annulée",
+  details: OrderDetail[]
+): Promise<Order[] | null> {
+  try {
+    const response = await Axios().put<Order[]>(`/orders/${id}`, {
+      statut,
+      details,
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Error updating order:",
+      error.response?.data || error.message
+    );
+    return null;
+  }
+}
+export async function fetchOrderClientById(id: string): Promise<Order[]> {
+  try {
+    const response = await Axios().get<Order[]>(`/orders/${id}`);
+    console.log(response.data, "Fetched products");
+    return response.data;
+  } catch (error) {
+    console.error("Unexpected error fetching products:", error);
+    return [];
+  }
+}
+
+export async function editUser(
+  id: string,
+  updatedData: Partial<UserInfo> | FormData
+): Promise<UserInfo | null> {
+  try {
+    const response = await Axios().put<UserInfo>(
+      `/auth/settings/${id}`,
+      updatedData,
+      {
+        headers: {
+          "Content-Type":
+            updatedData instanceof FormData
+              ? "multipart/form-data"
+              : "application/json",
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Error updating user:",
+      error.response?.data || error.message
+    );
+    return null;
+  }
+}
+
+export const deleteOrder = async (id: string): Promise<void> => {
+  try {
+    const response = await Axios().delete(`/orders/${id}`);
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Failed to delete order:",
+      error.response?.data || error.message || error
+    );
+    throw error;
+  }
+};
+
+export async function fetchArtisanOfMonth(): Promise<ArtisanInfoThisMonth[]> {
+  try {
+    const response = await Axios().get<ArtisanInfoThisMonth[]>(
+      `/orders/artisan_of_the_month`
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Unexpected error fetching artisans:", error);
+    return [];
+  }
+}
+
+export async function featured_products(): Promise<Product[]> {
+  try {
+    const response = await Axios().get<Product[]>(
+      `/products/featured_products`
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Unexpected error fetching featured products:", error);
+    return [];
+  }
+}
+
+export async function fetchStaticOfArtisan(
+  id: string
+): Promise<ArtisanStatistics | null> {
+  try {
+    const response = await Axios().get<ArtisanStatistics>(
+      `/orders/Static_Of_Artisan/${id}`
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Unexpected error fetching artisan statistics:", error);
+    return null;
+  }
+}
+
+export async function fetchAllArtisan(): Promise<ArtisanInfo[] | undefined> {
+  try {
+    const { data }: { data: ArtisanInfo[] } = await Axios().get(
+      `/auth/all_artisan`
+    );
+    return data;
+  } catch (error: any) {
+    console.error(
+      "Error fetching Artisan:",
+      error.response ? error.response.data : error.message
+    );
+    return undefined;
+  }
+}
+
+export async function fetchAllUser(): Promise<UsersInfo[] | undefined> {
+  try {
+    const { data }: { data: UsersInfo[] } = await Axios().get(`/auth/all_user`);
+    return data;
+  } catch (error: any) {
+    console.error(
+      "Error fetching Artisan:",
+      error.response ? error.response.data : error.message
+    );
+    return undefined;
+  }
+}
+
+export async function fetchAllOrder(): Promise<Order[] | undefined> {
+  try {
+    const { data }: { data: Order[] } = await Axios().get(`/orders`);
+    return data;
+  } catch (error: any) {
+    console.error(
+      "Error fetching Artisan:",
+      error.response ? error.response.data : error.message
+    );
+    return undefined;
+  }
+}
+
+export async function editAllUser(
+  id: string,
+  updatedData: Partial<UserInfo> | FormData
+): Promise<UserInfo | null> {
+  try {
+    const response = await Axios().put<UserInfo>(
+      `/auth/update_all_user/${id}`,
+      updatedData,
+      {
+        headers: {
+          "Content-Type":
+            updatedData instanceof FormData
+              ? "multipart/form-data"
+              : "application/json",
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Error updating user:",
+      error.response?.data || error.message
+    );
+    return null;
+  }
+}
+
+
+
+export async function fetchAllAdmin(): Promise<AdminInfo[] | undefined> {
+  try {
+    const { data }: { data: AdminInfo[] } = await Axios().get(`/auth/all_Admin`);
+    return data;
+  } catch (error: any) {
+    console.error(
+      "Error fetching Artisan:",
+      error.response ? error.response.data : error.message
+    );
     return undefined;
   }
 }

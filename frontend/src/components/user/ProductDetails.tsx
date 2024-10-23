@@ -16,13 +16,24 @@ import {
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import { useParams } from "react-router-dom";
-import { CartProduct, Product } from "../../apis/interfaces";
-import { addCart, addWishList, fetchProductById } from "../../apis/action";
+import { Product, wishlistResponseItem } from "../../apis/interfaces";
+import {
+  addCart,
+  addWishList,
+  deleteWishList,
+  fetchProductById,
+} from "../../apis/action";
 import Layout from "../layout/Layout";
 import CustomBreadcrumbs from "../layout/Breadcrumbs";
-import { useAppSelector } from "../../stores/storeHooks";
+import { useAppDispatch, useAppSelector } from "../../stores/storeHooks";
 import { RootState } from "../../stores/store";
 import Reviews from "./Reviews";
+import { addProductToCart } from "../../stores/slice/cartSlice";
+import {
+  addProductToWishlist,
+  removeProductFromWishlist,
+} from "../../stores/slice/wishSlice";
+import FavoriteIcon from "@mui/icons-material/Favorite";
 
 const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -30,28 +41,28 @@ const ProductDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tabValue, setTabValue] = useState(0);
-  const [name, setName] = useState<string | null>(null);
-  const [favoriteProducts, setFavoriteProducts] = useState<string[]>([]);
-  const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [averageRating, setAverageRating] = useState(0);
   const [userLength, setUserLength] = useState(0);
 
+  const wishlist = useAppSelector((state: RootState) => state.wish.products);
   const userId = useAppSelector((state: RootState) => state.user.userInfos.id);
+  const role = useAppSelector((state: RootState) => state.user.userInfos.role);
+
+  const dispatch = useAppDispatch();
 
   const breadcrumbItems = [
     { label: "Home", href: "/" },
-    { label: "Products", href: "/product" },
-    { label: `Product Details : ${name}` },
+    { label: "Products", href: "/products" },
+    { label: `Product Details : ${product?.name}` },
   ];
 
   useEffect(() => {
     async function getProduct() {
+      setLoading(true);
       try {
         const fetchedProduct = await fetchProductById(id!);
         if (fetchedProduct) {
           setProduct(fetchedProduct);
-          setName(fetchedProduct.name);
         }
       } catch (err) {
         setError("Failed to fetch product details");
@@ -63,42 +74,68 @@ const ProductDetail: React.FC = () => {
     getProduct();
   }, [id]);
 
-  const toggleFavorite = async (productId: string, clientId: string) => {
-    try {
-      const isFavorite = favoriteProducts.includes(productId);
+  const toggleFavorite = async (productId: string) => {
+    // Check if the product is in the wishlist
+    const isFavorite = wishlist.some((item) => item.productId === productId);
 
-      if (isFavorite) {
-        setFavoriteProducts((prevFavorites) =>
-          prevFavorites.filter((id) => id !== productId)
-        );
-        // Handle removing from the wishlist (API call)
-      } else {
-        const addwishResponse = await addWishList(clientId, productId);
-        if (addwishResponse) {
-          setFavoriteProducts((prevFavorites) => [...prevFavorites, productId]);
-        } else {
-          setError("Failed to add to wishlist");
+    if (isFavorite) {
+      // Remove from wishlist
+      dispatch(removeProductFromWishlist(productId));
+
+      if (userId) {
+        try {
+          await deleteWishList(productId, userId);
+        } catch (error) {
+          console.error("Failed to remove from wishlist on server", error);
         }
       }
-    } catch (err) {
-      setError("Failed to update favorite products");
+    } else {
+      // Add to wishlist
+      if (product) {
+        const productToAdd: wishlistResponseItem = { productId };
+
+        dispatch(addProductToWishlist(productToAdd));
+
+        if (userId) {
+          try {
+            await addWishList(userId, [productId]);
+          } catch (error) {
+            console.error("Failed to add to wishlist on server", error);
+          }
+        }
+      }
     }
   };
 
-  const addToCart = async (client: string, products: CartProduct[]) => {
+  const handleAddProductToCart = async (
+    productId: string,
+    price: number,
+    promo: boolean,
+    discountPercentage: number
+  ) => {
     try {
-      await addCart(client, products);
-      setSnackbarMessage("Added to cart!");
-    } catch (error) {
-      setError("Failed to add to cart");
-    } finally {
-      setSnackbarOpen(true);
+      dispatch(
+        addProductToCart({
+          productId,
+          price,
+          quantity: 1,
+          promo,
+          discountPercentage,
+        })
+      );
+
+      if (userId) {
+        await addCart(userId, [{ productId, quantity: 1 }]);
+      }
+    } catch (err) {
+      console.error("Error adding product to cart", err);
     }
   };
 
   const handleRatingUpdate = (newAverageRating: number) => {
-    setAverageRating(newAverageRating); // Update average rating
+    setAverageRating(newAverageRating);
   };
+
   const handleUserRating = (userLength: number) => {
     setUserLength(userLength);
   };
@@ -150,8 +187,8 @@ const ProductDetail: React.FC = () => {
     );
   }
 
-  const productImage = product?.photos?.[0]
-    ? `http://localhost:5000/${product.photos[0]}`
+  const productImage = product.photos?.[0]
+    ? `${import.meta.env.VITE_API_IMAGE}${product.photos[0]}`
     : "/placeholder.jpg";
 
   return (
@@ -189,20 +226,13 @@ const ProductDetail: React.FC = () => {
               p: 3,
             }}
           >
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                mb: 0, 
-              }}
-            >
+            <Box sx={{ display: "flex", alignItems: "center", mb: 0 }}>
               <Rating
                 value={averageRating}
                 precision={0.5}
                 size="large"
                 readOnly
               />
-
               <Typography variant="body2" color="textSecondary">
                 ({userLength})
               </Typography>
@@ -211,12 +241,11 @@ const ProductDetail: React.FC = () => {
               <Typography variant="h4" gutterBottom>
                 {product.name}
               </Typography>
-            
             </Box>
             <Box mb={2}>
               <Typography variant="body1" color="textSecondary" paragraph>
                 {product.description && product.description.length > 200
-                  ? product.description.slice(0, 200) + "..."
+                  ? `${product.description.slice(0, 200)}...`
                   : product.description}
                 {product.description && product.description.length > 200 && (
                   <Button
@@ -232,38 +261,58 @@ const ProductDetail: React.FC = () => {
                 ${product.price}
               </Typography>
             </Box>
-            <Box display="flex" gap={2} mb={2}>
-              <Button
-                variant="contained"
-                startIcon={<ShoppingCartIcon />}
-                sx={{
-                  flex: 1,
-                  bgcolor: "primary.main",
-                  "&:hover": { bgcolor: "primary.dark" },
-                }}
-                onClick={() =>
-                  addToCart(userId!, [{ productId: product._id, quantity: 1 }])
-                }
-              >
-                Add to Cart
-              </Button>
-              <Button
-                variant="outlined"
-                startIcon={<FavoriteBorderIcon />}
-                sx={{
-                  flex: 1,
-                  borderColor: "black",
-                  color : 'red',
-                  "&:hover": {
-                    borderColor: "secondary.dark",
-                    color: "secondary.dark",
-                  },
-                }}
-                onClick={() => toggleFavorite(id!, userId!)}
-              >
-                Add to Wishlist
-              </Button>
-            </Box>
+
+            {role !== "artisan" && (
+              <Box display="flex" gap={2} mb={2}>
+                <Button
+                  variant="contained"
+                  startIcon={<ShoppingCartIcon />}
+                  sx={{
+                    flex: 1,
+                    bgcolor: "primary.main",
+                    "&:hover": { bgcolor: "primary.dark" },
+                  }}
+                  onClick={() =>
+                    handleAddProductToCart(
+                      product._id,
+                      product.price,
+                      product.promo,
+                      product.discountPercentage
+                    )
+                  }
+                >
+                  Add to Cart
+                </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={
+                    wishlist.some((e) => e.productId === product._id) ? (
+                      <FavoriteIcon sx={{ color: "red" }} />
+                    ) : (
+                      <FavoriteBorderIcon />
+                    )
+                  }
+                  sx={{
+                    flex: 1,
+                    borderColor: "black",
+                    color: wishlist.some((e) => e.productId === product._id)
+                      ? "red"
+                      : "default",
+                    "&:hover": {
+                      borderColor: "secondary.dark",
+                      color: wishlist.some((e) => e.productId === product._id)
+                        ? "darkred"
+                        : "default",
+                    },
+                  }}
+                  onClick={() => toggleFavorite(product._id)}
+                >
+                  {wishlist.some((e: any) => e.productId === product._id)
+                    ? "Remove from Wishlist"
+                    : "Add to Wishlist"}
+                </Button>
+              </Box>
+            )}
           </CardContent>
         </Card>
         <Box mt={4}>

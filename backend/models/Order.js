@@ -1,5 +1,3 @@
-// models/Order.js
-
 import mongoose from "mongoose";
 
 const orderSchema = new mongoose.Schema({
@@ -36,32 +34,42 @@ const orderSchema = new mongoose.Schema({
         type: Number,
         required: true,
       },
+      accepte: {
+        type: String,
+        enum: ["en cours", "accepte", "annulée"],
+        default: "en cours",
+      },
     },
   ],
   delivery_address: [
     {
       firstname: {
         type: String,
-        require: false,
+        required: false,
       },
       lastname: {
         type: String,
-        require: false,
+        required: false,
       },
       address: {
         type: String,
-        require: false,
+        required: false,
       },
       country: {
         type: String,
-        require: false,
+        required: false,
       },
       zipCode: {
         type: String,
-        require: false,
+        required: false,
+      },
+      phone: {
+        type: Number,
+        required: false,
       },
     },
   ],
+  createdAt: { type: Date, default: Date.now },
 });
 
 const Order = mongoose.model("Order", orderSchema);

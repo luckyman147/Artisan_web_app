@@ -54,7 +54,11 @@ const userRole = (state: RootState) => state.userType.role;
 export default function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState<string>("");
-  const { handleSubmit, control } = useForm<UserRegister>();
+  const {
+    handleSubmit,
+    control,
+    formState: { errors },
+  } = useForm<UserRegister>();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const role = useAppSelector(userRole);
   const dispatch = useAppDispatch();
@@ -72,7 +76,7 @@ export default function RegisterForm() {
         data.email,
         data.password,
         phoneAsNumber,
-        data.adress,
+        data.address,
         data.company_name,
         role
       );
@@ -185,6 +189,13 @@ export default function RegisterForm() {
                 name="email"
                 control={control}
                 defaultValue=""
+                rules={{
+                  required: "Email is required",
+                  pattern: {
+                    value: /^\S+@\S+\.\S+$/,
+                    message: "Email is invalid",
+                  },
+                }}
                 render={({ field }) => (
                   <TextField
                     label="Email"
@@ -193,6 +204,8 @@ export default function RegisterForm() {
                     margin="normal"
                     variant="outlined"
                     color="primary"
+                    error={!!errors.email}
+                    helperText={errors.email?.message}
                     {...field}
                   />
                 )}
@@ -202,27 +215,43 @@ export default function RegisterForm() {
               <Controller
                 name="phone"
                 control={control}
+                rules={{
+                  required: "Phone number is required",
+                  pattern: {
+                    value: /^\d{11}$/, // Match exactly 8 digits
+                    message: "Phone number must contain exactly 8 digits", // Error message if invalid
+                  },
+                }}
                 render={({ field }) => (
-                  <PhoneInput
-                    country={"tn"}
-                    value={phoneNumber}
-                    onChange={(value) => setPhoneNumber(value)}
-                    inputStyle={{
-                      width: "100%",
-                      height: "56px",
-                      fontSize: "16px",
-                      borderRadius: "4px",
-                      borderColor: "#ced4da",
-                      paddingLeft: "48px",
-                    }}
-                    buttonStyle={{ borderRadius: "4px 0 0 4px" }}
-                  />
+                  <>
+                    <PhoneInput
+                      country={"tn"} // Specify Tunisia
+                      value={phoneNumber}
+                      onChange={(value) => {
+                        field.onChange(value); // Pass the value to the form controller
+                        setPhoneNumber(value); // Update state
+                      }}
+                      inputStyle={{
+                        width: "100%",
+                        height: "56px",
+                        borderRadius: "4px",
+                        border: errors.phone
+                          ? "1px solid red"
+                          : "1px solid #ccc", 
+                      }}
+                    />
+                    {errors.phone && (
+                      <p style={{ color: "red", marginTop: "5px" }}>
+                        {errors.phone.message} 
+                      </p>
+                    )}
+                  </>
                 )}
               />
             </Box>
             <Box sx={{ width: "100%", mb: 1 }}>
               <Controller
-                name="adress"
+                name="address"
                 control={control}
                 defaultValue=""
                 render={({ field }) => (
@@ -250,6 +279,8 @@ export default function RegisterForm() {
                       margin="normal"
                       variant="outlined"
                       color="primary"
+                      error={!!errors.phone}
+                      helperText={errors.phone?.message}
                       {...field}
                     />
                   )}
@@ -261,6 +292,19 @@ export default function RegisterForm() {
                 name="password"
                 control={control}
                 defaultValue=""
+                rules={{
+                  required: "Password is required",
+                  minLength: {
+                    value: 8,
+                    message: "Password must be at least 8 characters",
+                  },
+                  pattern: {
+                    value:
+                      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
+                    message:
+                      "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
+                  },
+                }}
                 render={({ field }) => (
                   <TextField
                     label="Password"
@@ -269,6 +313,8 @@ export default function RegisterForm() {
                     margin="normal"
                     variant="outlined"
                     color="primary"
+                    error={!!errors.password}
+                    helperText={errors.password?.message}
                     InputProps={{
                       endAdornment: (
                         <InputAdornment position="end">

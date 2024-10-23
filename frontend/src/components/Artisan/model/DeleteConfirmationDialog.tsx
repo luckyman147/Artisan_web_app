@@ -1,9 +1,8 @@
 import * as React from "react";
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from "@mui/material";
-import { Product } from "../../apis/interfaces";
-import { deleteProduct } from "../../apis/action";
-import { useAppSelector } from "../../stores/storeHooks";
-import { RootState } from "../../stores/store";
+import { Product } from "../../../apis/interfaces";
+import { deleteProduct } from "../../../apis/action";
+
 
 interface DeleteConfirmationDialogProps {
   open: boolean;
@@ -13,14 +12,12 @@ interface DeleteConfirmationDialogProps {
 }
 
 const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({ open, onClose, onConfirm, product }) => {
-  // Get the token from the Redux store
-  const token = useAppSelector((state: RootState) => state.user.userInfos.token);
 
   // Handle delete operation
   const handleDelete = async () => {
     if (product?._id) {
       try {
-        const response = await deleteProduct(product._id, token);
+        const response = await deleteProduct(product._id);
         console.log("Product deleted successfully:", response);
         onConfirm(); // Trigger the parent component's onConfirm callback
         onClose();   // Close the dialog

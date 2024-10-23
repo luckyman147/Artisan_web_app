@@ -18,21 +18,25 @@ import {
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import { FcGoogle } from "react-icons/fc";
 import { Facebook02Icon } from "./RegisterForm";
-import { useAppDispatch } from "../../stores/storeHooks";
+import { useAppDispatch, useAppSelector } from "../../stores/storeHooks";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { setLogin, userLogin } from "../../stores/slice/userSlice";
-import { UserConnectForm } from "../../apis/interfaces";
+import { CartProductResponse, UserConnectForm, UserInfos } from "../../apis/interfaces";
 import back from "../../assets/images/blob-scene-haikei login.svg";
 import ForgotPassword from "./ForgotPassword";
 import UserTypeSelection from "./UserTypeSelection";
+import { addCart, addWishList } from "../../apis/action";
+import { AppDispatch, RootState } from "../../stores/store";
+import { useDispatch } from "react-redux";
+import Dashboard from "../Admin/components/Layout";
 
 export default function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [openForgotPassword, setOpenForgotPassword] = useState(false);
   const [openUserType, setOpenUserType] = useState(false);
-  const dispatch = useAppDispatch();
+  const dispatch = useDispatch<AppDispatch>(); 
   const navigate = useNavigate();
 
   const {
@@ -45,23 +49,53 @@ export default function Login() {
   const [isError, setIsError] = useState<boolean>(false);
 
   const handleShowPassword = () => setShowPassword((prev) => !prev);
+  const wishlist = useAppSelector((state: RootState) => state.wish);
+  const cart = useAppSelector((state: RootState) => state.cart);
 
   const onSubmit = async (values: UserConnectForm) => {
     setError(null);
     setIsError(false);
-
+  
     try {
-      const data = await userLogin(values.email, values.password);
-
+      // Attempt to login with the provided email and password
+      const data: UserInfos | undefined = await dispatch(userLogin(values.email, values.password))
+  
       if (data) {
+        // Dispatch the login action and store user data in Redux
         dispatch(setLogin(data));
-        console.log(data,"loginnnn");        
-        if(data.role === "user"){
-           navigate("/products");
-        }else if(data.role === "artisan"){
-           navigate("/dashboard");
+  
+        if (data.id) {
+          // Create cart products based on existing cart state
+          const cartProducts: CartProductResponse[] = cart.products.map(
+            (product) => ({
+              productId: product.productId,
+              quantity: product.quantity || 1,
+            })
+          );
+  
+          // Add cart products to the server if there are any in the cart
+          if (cartProducts.length > 0) {
+            await addCart(data.id, cartProducts);
+          }
+  
+          // Add wishlist products to the server if any exist in the wishlist
+          if (wishlist.products.length > 0) {
+            const wishProducts = wishlist.products.map((productId) => ({
+              productId
+            }));
+  
+            await addWishList(data.id, wishProducts);
+          }
         }
-       
+  
+        // Redirect user based on their role
+        if (data.role === "user") {
+          navigate("/products");
+        } else if (data.role === "artisan") {
+          navigate("/dashboard");
+        }else if(data.role === "Admin"){
+            navigate("/Admin_dashboard")
+        }
       } else {
         setError("Username or password incorrect!");
         setIsError(true);
@@ -72,7 +106,7 @@ export default function Login() {
       setIsError(true);
     }
   };
-
+  
   const handleFacebookLogin = () => {
     window.open(import.meta.env.VITE_AUTH_FACEBOOK, "_self");
   };
@@ -83,20 +117,21 @@ export default function Login() {
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('token');
-    const id = urlParams.get('id');
+    const token = urlParams.get("token");
+    const id = urlParams.get("id");
 
     if (token && id) {
-      dispatch(setLogin({
-        token: token,
-        id: id,
-        isVerified: true,
-        role: "user",
-      }));
-      navigate('/home')
+      dispatch(
+        setLogin({
+          token: token,
+          id: id,
+          isVerified: true,
+          role: "user",
+        })
+      );
+      navigate("/home");
     }
   }, [dispatch]);
-
 
   const handleOpenForgotPassword = () => setOpenForgotPassword(true);
   const handleCloseForgotPassword = () => setOpenForgotPassword(false);
@@ -167,10 +202,7 @@ export default function Login() {
                 InputProps={{
                   endAdornment: (
                     <InputAdornment position="end">
-                      <IconButton
-                        onClick={handleShowPassword}
-                        edge="end"
-                      >
+                      <IconButton onClick={handleShowPassword} edge="end">
                         {showPassword ? <VisibilityOff /> : <Visibility />}
                       </IconButton>
                     </InputAdornment>
@@ -223,7 +255,11 @@ export default function Login() {
               align="center"
               display="block"
               mt={2}
-              sx={{ fontWeight: "600", fontFamily: "Poppins, sans-serif", cursor: 'pointer' }}
+              sx={{
+                fontWeight: "600",
+                fontFamily: "Poppins, sans-serif",
+                cursor: "pointer",
+              }}
             >
               Forget your password?
             </Link>
@@ -235,7 +271,10 @@ export default function Login() {
               sx={{ fontFamily: "Poppins, sans-serif", mt: 1 }}
             >
               Don't have an account?{" "}
-              <Link onClick={handleOpenUserType} sx={{ fontWeight: "600", cursor: 'pointer' }}>
+              <Link
+                onClick={handleOpenUserType}
+                sx={{ fontWeight: "600", cursor: "pointer" }}
+              >
                 Sign up
               </Link>
             </Typography>
@@ -316,5 +355,3 @@ export default function Login() {
     </Grid>
   );
 }
-
-

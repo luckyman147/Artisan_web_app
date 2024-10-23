@@ -12,29 +12,30 @@ import {
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import { useEffect, useState } from "react";
-import { getAllcategories, getArtisanById } from "../../apis/action";
+import { getAllcategories } from "../../apis/action";
 import { useAppSelector } from "../../stores/storeHooks";
 import { RootState } from "../../stores/store";
-import { Product, ArtisanInfo, Category } from "../../apis/interfaces";
+import { Category } from "../../apis/interfaces";
 
 interface SidebarProps {
   onFilterChange: (filters: {
     search: string;
     priceRange: [number, number];
-    stockRange: [number, number];
+    stock: string[];
     categories: string[];
     artisans: string[];
+    stockRange: [number, number];
   }) => void;
 }
 
 export default function Sidebar({ onFilterChange }: SidebarProps) {
   const [categories, setCategories] = useState<Category[]>([]);
-  const [artisans, setArtisans] = useState<ArtisanInfo[]>([]);
   const [searchText, setSearchText] = useState<string>("");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 200]);
-  const [stockRange, setStockRange] = useState<[number, number]>([0, 100]);
+  const [selectedStock, setSelectedStock] = useState<Set<string>>(new Set());
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
   const [selectedArtisans, setSelectedArtisans] = useState<Set<string>>(new Set());
+  const [stockRange, setStockRange] = useState<[number, number]>([0, 100]);
 
   const id = useAppSelector((state: RootState) => state.user.userInfos.id);
   const token = useAppSelector((state: RootState) => state.user.userInfos.token);
@@ -48,28 +49,15 @@ export default function Sidebar({ onFilterChange }: SidebarProps) {
         console.error("Failed to fetch categories", err);
       }
     }
-
-    async function fetchArtisan() {
-      try {
-        const response = await getArtisanById(id!, token);
-        if (response) setArtisans(response);
-      } catch (err) {
-        console.error("Failed to fetch artisans", err);
-      }
-    }
-
     fetchCategory();
-    fetchArtisan();
   }, [id, token]);
 
-  // Handle search text change
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchText(value);
     applyFilters({ search: value });
   };
 
-  // Handle category change
   const handleCategoryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, checked } = e.target;
     const updatedCategories = new Set(selectedCategories);
@@ -82,7 +70,6 @@ export default function Sidebar({ onFilterChange }: SidebarProps) {
     applyFilters({ categories: Array.from(updatedCategories) });
   };
 
-  // Handle artisan change
   const handleArtisanChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, checked } = e.target;
     const updatedArtisans = new Set(selectedArtisans);
@@ -95,26 +82,36 @@ export default function Sidebar({ onFilterChange }: SidebarProps) {
     applyFilters({ artisans: Array.from(updatedArtisans) });
   };
 
-  // Handle stock change
-  const handleStockChange = (e: Event, value: number | number[]) => {
-    setStockRange(value as [number, number]);
-    applyFilters({ stockRange: value as [number, number] });
+  const handleStockChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, checked } = e.target;
+    const updatedStock = new Set(selectedStock);
+    if (checked) {
+      updatedStock.add(name);
+    } else {
+      updatedStock.delete(name);
+    }
+    setSelectedStock(updatedStock);
+    applyFilters({ stock: Array.from(updatedStock) });
   };
 
-  // Handle price change
-  const handlePriceChange = (e: Event, value: number | number[]) => {
+  const handlePriceChange = (_: Event, value: number | number[]) => {
     setPriceRange(value as [number, number]);
     applyFilters({ priceRange: value as [number, number] });
   };
 
-  // Function to apply filters and pass them up to parent
+  const handleStockRangeChange = (_: Event, value: number | number[]) => {
+    setStockRange(value as [number, number]);
+    applyFilters({ stockRange: value as [number, number] });
+  };
+
   const applyFilters = (updatedFilter: Partial<any>) => {
     onFilterChange({
       search: searchText,
       priceRange,
-      stockRange,
+      stock: Array.from(selectedStock),
       categories: Array.from(selectedCategories),
       artisans: Array.from(selectedArtisans),
+      stockRange,
       ...updatedFilter,
     });
   };
@@ -122,26 +119,31 @@ export default function Sidebar({ onFilterChange }: SidebarProps) {
   return (
     <Box
       sx={{
-        p: 2,
-        backgroundColor: "#f9f9f9",
+        p: 3,
+        backgroundColor: "#ffffff",
         borderRadius: 2,
-        boxShadow: 1,
+        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
         width: { xs: "100%", sm: 250, xl: "70%" },
         height: { xs: "auto", sm: "calc(100vh - 64px)", xl: "100%" },
         overflowY: "auto",
         marginTop: "5px",
+        border: "1px solid #e0e0e0",
       }}
     >
-      {/* Search Field */}
+      <Typography
+        variant="h5"
+        sx={{ mb: 3, fontWeight: "bold", textAlign: "center", color: "primary.main" }}
+      >
+        Filter Products
+      </Typography>
+
       <TextField
-        label="Search our store"
+        label="Search Products"
         variant="outlined"
         fullWidth
         value={searchText}
         onChange={handleSearchChange}
-        sx={{
-          mb: 2,
-        }}
+        sx={{ mb: 3 }}
         InputProps={{
           endAdornment: (
             <InputAdornment position="end">
@@ -153,23 +155,21 @@ export default function Sidebar({ onFilterChange }: SidebarProps) {
         }}
       />
 
-      {/* Filter by Stock */}
-      <Typography variant="h6" sx={{ mb: 1, color: "text.primary" }}>
-        Filter by Stock
+      <Typography variant="h6" sx={{ mb: 1, color: "text.secondary" }}>
+        Stock Range
       </Typography>
       <Divider sx={{ mb: 2 }} />
       <Slider
         value={stockRange}
-        onChange={handleStockChange}
+        onChange={handleStockRangeChange}
         valueLabelDisplay="auto"
         min={0}
         max={100}
-        sx={{ mb: 2 }}
+        sx={{ mb: 3 }}
       />
 
-      {/* Filter by Price */}
-      <Typography variant="h6" sx={{ mb: 1, color: "text.primary" }}>
-        Filter by Price
+      <Typography variant="h6" sx={{ mb: 1, color: "text.secondary" }}>
+        Price Range
       </Typography>
       <Divider sx={{ mb: 2 }} />
       <Slider
@@ -178,15 +178,14 @@ export default function Sidebar({ onFilterChange }: SidebarProps) {
         valueLabelDisplay="auto"
         min={0}
         max={200}
-        sx={{ mb: 2 }}
+        sx={{ mb: 3 }}
       />
 
-      {/* Filter by Category */}
-      <Typography variant="h6" sx={{ mb: 1, color: "text.primary" }}>
-        Filter by Category
+      <Typography variant="h6" sx={{ mb: 1, color: "text.secondary" }}>
+        Categories
       </Typography>
       <Divider sx={{ mb: 2 }} />
-      <List sx={{ mb: 2 }}>
+      <List sx={{ mb: 3 }}>
         {categories.map((category) => (
           <FormControlLabel
             key={category._id}
@@ -195,44 +194,20 @@ export default function Sidebar({ onFilterChange }: SidebarProps) {
                 name={category._id}
                 checked={selectedCategories.has(category._id)}
                 onChange={handleCategoryChange}
+                sx={{
+                  color: "primary.main",
+                  "&.Mui-checked": {
+                    color: "primary.main",
+                  },
+                }}
               />
             }
             label={category.name}
             sx={{
-              padding: "10px",
+              padding: "18px",
               borderRadius: 1,
               "&:hover": {
-                backgroundColor: "primary.light",
-                color: "white",
-              },
-            }}
-          />
-        ))}
-      </List>
-
-      {/* Filter by Artisan */}
-      <Typography variant="h6" sx={{ mb: 1, color: "text.primary" }}>
-        Filter by Artisan
-      </Typography>
-      <Divider sx={{ mb: 2 }} />
-      <List sx={{ mb: 2 }}>
-        {artisans.map((artisan) => (
-          <FormControlLabel
-            key={artisan._id}
-            control={
-              <Checkbox
-                name={artisan._id}
-                checked={selectedArtisans.has(artisan._id)}
-                onChange={handleArtisanChange}
-              />
-            }
-            label={artisan.firstname}
-            sx={{
-              padding: "10px",
-              borderRadius: 1,
-              "&:hover": {
-                backgroundColor: "primary.light",
-                color: "white",
+                backgroundColor: "rgba(0, 0, 0, 0.05)",
               },
             }}
           />

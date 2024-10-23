@@ -1,13 +1,12 @@
-// controllers/productController.js
-import Product from '../models/Product.js'; // Assurez-vous que le chemin est correct
+import Product from '../models/Product.js'; 
 import User from '../models/User.js';
 import  deleteFiles  from '../utils/fileUtils.js';
 
 
 export const createProduit =async (req, res) => {
   try {
-    const photos = req.files.map(file => file.path); // Chemins des photos
-    const userId = req.user.id; // Assurez-vous que req.user contient l'ID de l'utilisateur connecté
+    const photos = req.files.map(file => file.path); 
+    const userId = req.user.id; 
     const user = await User.findById(userId);
     if (!user || user.role !== 'artisan') {
       return res.status(403).json({ message: 'User not authenticated' });
@@ -15,7 +14,8 @@ export const createProduit =async (req, res) => {
     const product = new Product({
       ...req.body,
       artisan: req.user.id,
-      photos: photos
+      photos: photos,
+      
     });
     await product.save();
     res.status(201).json(product);
@@ -28,30 +28,31 @@ export const getProduits = async (req, res) => {
   try {
     const filters = req.query;
     const filterCriteria = {};
+    const sortCriteria = {};
+
+    // Helper function to build the filter for numeric ranges
+    const buildRangeFilter = (field, min, max) => {
+      const rangeFilter = {};
+      if (min) rangeFilter.$gte = Number(min);
+      if (max) rangeFilter.$lte = Number(max);
+      return Object.keys(rangeFilter).length > 0 ? { [field]: rangeFilter } : {};
+    };
 
     // Apply filters
     if (filters.name) {
       filterCriteria.name = new RegExp(filters.name, 'i');
     }
-    if (filters.minPrice) {
-      filterCriteria.price = { ...filterCriteria.price, $gte: Number(filters.minPrice) };
-    }
-    if (filters.maxPrice) {
-      filterCriteria.price = { ...filterCriteria.price, $lte: Number(filters.maxPrice) };
-    }
+
+    Object.assign(filterCriteria, buildRangeFilter('price', filters.minPrice, filters.maxPrice));
+    Object.assign(filterCriteria, buildRangeFilter('stock', filters.stock));
+
     if (filters.category) {
       filterCriteria.category = mongoose.Types.ObjectId(filters.category);
     }
-    if (filters.stock) {
-      filterCriteria.stock = { $gte: Number(filters.stock) };
-    }
-    if (filters.createdAfter) {
-      filterCriteria.createdAt = { ...filterCriteria.createdAt, $gte: new Date(filters.createdAfter) };
-    }
-    if (filters.createdBefore) {
-      filterCriteria.createdAt = { ...filterCriteria.createdAt, $lte: new Date(filters.createdBefore) };
-    }
 
+    Object.assign(filterCriteria, buildRangeFilter('createdAt', filters.createdAfter, filters.createdBefore));
+
+    // Artisan filter
     if (filters.artisanFirstname || filters.artisanLastname) {
       const artisanCriteria = {};
       if (filters.artisanFirstname) {
@@ -61,15 +62,14 @@ export const getProduits = async (req, res) => {
         artisanCriteria.lastname = new RegExp(filters.artisanLastname, 'i');
       }
 
-      // Find artisans matching the criteria
       const artisans = await User.find(artisanCriteria).select('_id');
       const artisanIds = artisans.map(artisan => artisan._id);
-
-      // Add artisan IDs to filter criteria
-      filterCriteria.artisan = { $in: artisanIds };
+      if (artisanIds.length) {
+        filterCriteria.artisan = { $in: artisanIds };
+      }
     }
 
-    const sortCriteria = {};
+    // Sort criteria
     if (filters.sort) {
       sortCriteria[filters.sort] = filters.order === 'desc' ? -1 : 1;
     }
@@ -94,8 +94,11 @@ export const getProduits = async (req, res) => {
 // Récupérer un produit par ID
 export const getProduitById = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id);
+    // Fetch the product and populate the category field
+    const product = await Product.findById(req.params.id).populate('category'); 
+
     if (!product) return res.status(404).json({ message: 'Produit non trouvé' });
+    
     res.status(200).json(product);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -104,27 +107,44 @@ export const getProduitById = async (req, res) => {
 // Mettre à jour un produit par ID
 export const updateProduitById = async (req, res) => {
   try {
-    const photos = req.files ? req.files.map(file => file.path) : undefined;
-    console.log(photos);
-    
     const userId = req.user.id; 
+    const productId = req.params.id;
 
-  
- 
+    // Fetch the current product to get the existing photos
+    const existingProduct = await Product.findById(productId);
+    if (!existingProduct) {
+      return res.status(404).json({ message: 'Produit non trouvé' });
+    }
+
+    let photos;
+
+    // Check if new photos are uploaded
+    if (req.files && req.files.length > 0) {
+      photos = req.files.map(file => file.path);
+    } else {
+      // If no new photos are uploaded, retain existing photos
+      photos = existingProduct.photos;
+    }
+
+    // Perform the update
     const updatedProduct = await Product.findByIdAndUpdate(
-      req.params.id,
-      { ...req.body, photos: photos || undefined },
+      productId,
+      { ...req.body, photos: photos },
       { new: true }
     );
+
+    // Check if the user is authorized to update the product
     if (updatedProduct.artisan.toString() !== userId) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
-    if (!updatedProduct) return res.status(404).json({ message: 'Produit non trouvé' });
+
+    // Return the updated product
     res.status(200).json(updatedProduct);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 }
+
 // Supprimer un produit par ID
 export const deleteProduitById=  async (req, res) => {
   try {
@@ -148,13 +168,27 @@ export const deleteProduitById=  async (req, res) => {
   }
 };
 
-// Récupérer les produits par ID d'artisan
 export const getProductsByArtisanId = async (req, res) => {
   try {
-    const products = await Product.find({ artisan: req.params.artisanId });
+    const products = await Product.find({ artisan: req.params.artisanId })
+      .populate('category')
+      .sort({ createdAt: 'desc' }); 
     res.status(200).json(products);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 }
 
+export const getFeaturedProducts = async (req, res) => {
+  try {
+    const products = await Product.find({ tracking_number: { $exists: true, $ne: null } })
+      .sort({ tracking_number: -1 }) 
+      .limit(3) 
+      .populate('category') 
+      .populate('artisan'); 
+
+    res.status(200).json(products);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

@@ -7,16 +7,18 @@ const UserSchema = new mongoose.Schema({
   password: { type: String, required: true },
   role: {
     type: String,
-    enum: ['user', 'artisan'], 
+    enum: ['user', 'artisan',"Admin"], 
     default: 'user'           
   },
   email: { type: String, required: true, unique: true },
   phone: { type: Number },
   facebookId: { type: String },
   googleId: { type: String},
-  adress: { type: String},
+  address: { type: String},
   shopDescription: { type: String},
   registrationDate: { type: Date, default: Date.now },
+  avatar: { type: String } , 
+
 
   company_name: { type: String },
   isVerified: { type: Boolean, default: false },
