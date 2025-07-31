@@ -17,8 +17,14 @@ import {
   CssBaseline,
   Menu,
   MenuItem,
+  Avatar,
+  Divider,
+  alpha,
+  InputBase,
+  styled
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
+import SearchIcon from "@mui/icons-material/Search";
 import WishlistIcon from "@mui/icons-material/FavoriteBorder";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import PersonIcon from "@mui/icons-material/Person";
@@ -30,10 +36,51 @@ import { useNavigate } from "react-router-dom";
 import { RootState } from "../../stores/store";
 import { useAppSelector, useAppDispatch } from "../../stores/storeHooks";
 import { setLogout } from "../../stores/slice/userSlice";
-import waves from "../../assets/images/waves.svg";
 import { clearWishlist } from "../../stores/slice/wishSlice";
 import { deleteAllCartList, deleteAllWishList } from "../../apis/action";
 import { clearCart } from "../../stores/slice/cartSlice";
+
+const Search = styled('div')(({ theme }) => ({
+  position: 'relative',
+  borderRadius: theme.shape.borderRadius,
+  backgroundColor: alpha(theme.palette.common.white, 0.15),
+  '&:hover': {
+    backgroundColor: alpha(theme.palette.common.white, 0.25),
+  },
+  marginLeft: 0,
+  width: '100%',
+  [theme.breakpoints.up('sm')]: {
+    marginLeft: theme.spacing(1),
+    width: 'auto',
+  },
+}));
+
+const SearchIconWrapper = styled('div')(({ theme }) => ({
+  padding: theme.spacing(0, 2),
+  height: '100%',
+  position: 'absolute',
+  pointerEvents: 'none',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+}));
+
+const StyledInputBase = styled(InputBase)(({ theme }) => ({
+  color: 'inherit',
+  '& .MuiInputBase-input': {
+    padding: theme.spacing(1, 1, 1, 0),
+    // vertical padding + font size from searchIcon
+    paddingLeft: `calc(1em + ${theme.spacing(4)})`,
+    transition: theme.transitions.create('width'),
+    width: '100%',
+    [theme.breakpoints.up('sm')]: {
+      width: '12ch',
+      '&:focus': {
+        width: '20ch',
+      },
+    },
+  },
+}));
 
 export default function Navbar() {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -41,17 +88,13 @@ export default function Navbar() {
   const [userType, setUserType] = useState<string | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const role = useAppSelector((state: RootState) => state.user.userInfos.role);
-  const user = useAppSelector((state: RootState) => state.user.userInfos.id);
-  const cartLength = useAppSelector(
-    (state: RootState) => state.cart.cartLength
-  );
-  const wishLength = useAppSelector(
-    (state: RootState) => state.wish.wishLength
-  );
+  
+  const { role, id: userId, firstName, lastName } = useAppSelector((state: RootState) => state.user.userInfos);
+  const cartLength = useAppSelector((state: RootState) => state.cart.cartLength);
+  const wishLength = useAppSelector((state: RootState) => state.wish.wishLength);
 
   useEffect(() => {
     setUserType(role);
@@ -85,19 +128,18 @@ export default function Navbar() {
     dispatch(clearWishlist());
     dispatch(clearCart());
 
-    if (user) {
+    if (userId) {
       if (wishLength > 0) {
-        await deleteAllWishList(user);
+        await deleteAllWishList(userId);
       }
       if (cartLength > 0) {
-        await deleteAllCartList(user);
+        await deleteAllCartList(userId);
       }
     }
     dispatch(setLogout());
     navigate("/");
   };
 
-  // Dropdown menu handlers
   const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
   };
@@ -116,8 +158,6 @@ export default function Navbar() {
       navigate("/orders");
     } else if (role === "artisan") {
       navigate("/orderartisan");
-    } else {
-      console.log("Invalid user role");
     }
     handleProfileMenuClose();
   };
@@ -126,11 +166,15 @@ export default function Navbar() {
     if (role === "user") {
       navigate("/profile");
     } else if (role === "artisan") {
-      navigate(`/artisan/profile/${user}`);
-    } else {
-      console.log("Invalid user role");
+      navigate(`/artisan/profile/${userId}`);
     }
     handleProfileMenuClose();
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Implement search functionality
+    console.log("Search triggered");
   };
 
   return (
@@ -139,327 +183,476 @@ export default function Navbar() {
       <AppBar
         position="fixed"
         sx={{
-          width: "100%",
-          backgroundImage: `url(${waves})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundColor: "white",
+          backgroundColor: theme.palette.background.paper,
+          color: theme.palette.text.primary,
+          boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+          zIndex: theme.zIndex.drawer + 1
         }}
       >
-        <Toolbar sx={{ display: "flex", justifyContent: "space-between" }}>
-          <Box
-            sx={{ display: "flex", alignItems: "center", cursor: "pointer" }}
+        <Toolbar sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between',
+          padding: { xs: '0 8px', sm: '0 16px' }
+        }}>
+          {/* Logo/Brand */}
+          <Box 
+            sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              cursor: 'pointer',
+              mr: 2
+            }}
             onClick={() => navigate("/")}
           >
-            <Typography variant="h6" sx={{ color: "black", fontFamily  : "Rowdies",fontWeight : 600}}>
-              ArtShop
+            <Typography 
+              variant="h6" 
+              sx={{ 
+                fontWeight: 700,
+                background: 'linear-gradient(45deg, #FE6B8B 30%, #FF8E53 90%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              }}
+            >
+              ArtisanHub
             </Typography>
           </Box>
-          {isMobile ? (
-            <>
-              {role !== "artisan" && (
-                <IconButton
-                  color="inherit"
-                  onClick={() => navigate("/wishlist")}
-                >
-                  <Badge
-                    badgeContent={wishLength > 0 ? wishLength : null}
-                    sx={{
-                      "& .MuiBadge-badge": {
-                        backgroundColor:
-                          wishLength > 0 ? "white" : "transparent",
-                        color: "black",
-                        top: 0,
-                        right: 5,
-                      },
-                    }}
-                    overlap="circular"
-                  >
-                    <WishlistIcon sx={{ color: "red" }} />
-                  </Badge>
-                </IconButton>
-              )}
-              {role !== "artisan" && (
-                <IconButton color="inherit" onClick={() => navigate("/cart")}>
-                  <Badge
-                    badgeContent={cartLength > 0 ? cartLength : null}
-                    sx={{
-                      "& .MuiBadge-badge": {
-                        backgroundColor:
-                          cartLength > 0 ? "white" : "transparent",
-                        color: "black",
-                        top: 0,
-                        right: 5,
-                      },
-                    }}
-                    overlap="circular"
-                  >
-                    <ShoppingCartIcon sx={{ color: "blue" }} />
-                  </Badge>
-                </IconButton>
-              )}
-              <IconButton
-                color="inherit"
-                aria-label="open drawer"
-                edge="start"
-                onClick={handleDrawerToggle}
-              >
-                <MenuIcon sx={{ color: "black" }} />
-              </IconButton>
-              <Drawer
-                anchor="right"
-                open={drawerOpen}
-                onClose={handleDrawerToggle}
-              >
-                <List sx={{ width: 250 }}>
-                  {role === "artisan" && (
-                    <ListItem button onClick={handleNavigateDashboard}>
-                      <ListItemText
-                        primary="Dashboard"
-                        sx={{ color: "black" }}
-                      />
-                    </ListItem>
-                  )}
-                  {role !== "artisan" && (
-                    <ListItem button onClick={handleNavigateToProductList}>
-                      <ListItemText primary="Product" sx={{ color: "black" }} />
-                    </ListItem>
-                  )}
 
-                  {userType ? (
-                    <>
-                      {role === "artisan" && (
-                        <ListItem button onClick={handleNavigateToProfile}>
-                          <ListItemIcon>
-                            <PersonIcon sx={{ color: "black" }} />
-                          </ListItemIcon>
-                          <ListItemText
-                            primary="Profile"
-                            sx={{ color: "black" }}
-                          />
-                        </ListItem>
-                      )}
-                      <ListItem button onClick={handleNavigateToOrders}>
-                        <ListItemIcon>
-                          <OrderIcon sx={{ color: "black" }} />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary="Orders"
-                          sx={{ color: "black" }}
-                        />
-                      </ListItem>
-                      <ListItem button onClick={handleNavigateToSettings}>
-                        <ListItemIcon>
-                          <SettingsIcon sx={{ color: "black" }} />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary="Settings"
-                          sx={{ color: "black" }}
-                        />
-                      </ListItem>
-                      <ListItem button onClick={handleLogout}>
-                        <ListItemIcon>
-                          <LogoutIcon sx={{ color: "black" }} />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary="Logout"
-                          sx={{ color: "black" }}
-                        />
-                      </ListItem>
-                      <ListItem button onClick={() => navigate("/artisanlist")}>
-                        <ListItemText
-                          primary="Artisan"
-                          sx={{ color: "black" }}
-                        />
-                      </ListItem>
-                    </>
-                  ) : (
-                    <>
-                      <ListItem button onClick={handleNavigateLogin}>
-                        <ListItemText
-                          primary="Sign In"
-                          sx={{ color: "black" }}
-                        />
-                      </ListItem>
-                      <ListItem button onClick={handleJoinNowClick}>
-                        <ListItemText
-                          primary="Join Now"
-                          sx={{ color: "black" }}
-                        />
-                      </ListItem>
-                      <ListItem button onClick={() => navigate("/artisanlist")}>
-                        <ListItemText
-                          primary="Artisan"
-                          sx={{ color: "black" }}
-                        />
-                      </ListItem>
-                    </>
-                  )}
-                </List>
-              </Drawer>
-            </>
-          ) : (
-            <Box sx={{ display: "flex", alignItems: "center", flexGrow: 1 }}>
-              <Box
-                sx={{ flexGrow: 1, display: "flex", justifyContent: "center" }}
+          {/* Search Bar (Desktop) */}
+          {!isMobile && (
+            <Box sx={{ flexGrow: 1, maxWidth: 600, mx: 3 }}>
+              <form onSubmit={handleSearch}>
+                <Search>
+                  <SearchIconWrapper>
+                    <SearchIcon />
+                  </SearchIconWrapper>
+                  <StyledInputBase
+                    placeholder="Search products..."
+                    inputProps={{ 'aria-label': 'search' }}
+                  />
+                </Search>
+              </form>
+            </Box>
+          )}
+
+          {/* Desktop Navigation */}
+          {!isMobile && (
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Button
+                onClick={() => navigate("/artisanlist")}
+                sx={{
+                  color: theme.palette.text.primary,
+                  mx: 1,
+                  fontWeight: 500,
+                  '&:hover': {
+                    color: theme.palette.primary.main,
+                    backgroundColor: 'transparent'
+                  }
+                }}
               >
+                Artisans
+              </Button>
+
+              {role === "artisan" && (
                 <Button
-                  onClick={() => navigate("/artisanlist")}
+                  onClick={handleNavigateDashboard}
                   sx={{
-                    color: "black",
-                    marginLeft: 10,
-                    marginRight: 6,
-                    "&:hover": {
-                      backgroundColor: "Highlight",
-                      opacity: 0.9,
-                    },
+                    color: theme.palette.text.primary,
+                    mx: 1,
+                    fontWeight: 500,
+                    '&:hover': {
+                      color: theme.palette.primary.main,
+                      backgroundColor: 'transparent'
+                    }
                   }}
                 >
-                  Artisan
+                  Dashboard
                 </Button>
-                {role === "artisan" && (
-                  <Button
-                    onClick={handleNavigateDashboard}
-                    sx={{ color: "black" }}
-                  >
-                    Dashboard
-                  </Button>
-                )}
-                {role !== "artisan" && (
-                  <Button
-                    onClick={handleNavigateToProductList}
-                    sx={{
-                      color: "black",
-                      "&:hover": {
-                        backgroundColor: "Highlight",
-                        opacity: 0.9,
-                      },
-                    }}
-                  >
-                    Product
-                  </Button>
-                )}
-              </Box>
+              )}
 
-              <Box sx={{ display: "flex", alignItems: "center", ml: 2 }}>
+              {role !== "artisan" && (
+                <Button
+                  onClick={handleNavigateToProductList}
+                  sx={{
+                    color: theme.palette.text.primary,
+                    mx: 1,
+                    fontWeight: 500,
+                    '&:hover': {
+                      color: theme.palette.primary.main,
+                      backgroundColor: 'transparent'
+                    }
+                  }}
+                >
+                  Products
+                </Button>
+              )}
+
+              {/* Icons */}
+              <Box sx={{ display: 'flex', alignItems: 'center', ml: 2 }}>
                 {role !== "artisan" && (
                   <IconButton
-                    color="inherit"
                     onClick={() => navigate("/wishlist")}
-                    sx={{ color: "red" }}
+                    sx={{ 
+                      color: theme.palette.text.secondary,
+                      mx: 0.5,
+                      '&:hover': {
+                        color: theme.palette.error.main
+                      }
+                    }}
                   >
                     <Badge
                       badgeContent={wishLength > 0 ? wishLength : null}
-                      sx={{
-                        "& .MuiBadge-badge": {
-                          backgroundColor:
-                            wishLength > 0
-                              ? theme.palette.common.white
-                              : "none",
-                          color: "black",
-                        },
-                      }}
-                      overlap="circular"
+                      color="error"
                     >
                       <WishlistIcon />
                     </Badge>
                   </IconButton>
                 )}
+
                 {role !== "artisan" && (
                   <IconButton
-                    color="inherit"
                     onClick={() => navigate("/cart")}
-                    sx={{ color: "blue" }}
+                    sx={{ 
+                      color: theme.palette.text.secondary,
+                      mx: 0.5,
+                      '&:hover': {
+                        color: theme.palette.primary.main
+                      }
+                    }}
                   >
                     <Badge
                       badgeContent={cartLength > 0 ? cartLength : null}
-                      sx={{
-                        "& .MuiBadge-badge": {
-                          backgroundColor:
-                            cartLength > 0
-                              ? theme.palette.common.white
-                              : "none",
-                          color: "black",
-                        },
-                      }}
-                      overlap="circular"
+                      color="primary"
+                    overlap="circular"
+                    sx={{
+                      '& .MuiBadge-badge': {
+                        right: -3,
+                        top: 5
+                      }
+                    }}
                     >
-                      <ShoppingCartIcon />
-                    </Badge>
+                    <ShoppingCartIcon />
+                  </Badge>
+                </IconButton>
+              )}
+
+              {userType ? (
+                <>
+                  <IconButton
+                    onClick={handleProfileMenuOpen}
+                    sx={{ ml: 1 }}
+                  >
+                    <Avatar 
+                      sx={{ 
+                        width: 32, 
+                        height: 32,
+                        bgcolor: theme.palette.primary.main
+                      }}
+                    >
+                      {firstName ? firstName.charAt(0).toUpperCase() : <PersonIcon />}
+                    </Avatar>
                   </IconButton>
-                )}
+                  <Menu
+                    anchorEl={anchorEl}
+                    open={Boolean(anchorEl)}
+                    onClose={handleProfileMenuClose}
+                    anchorOrigin={{
+                      vertical: 'bottom',
+                      horizontal: 'right',
+                    }}
+                    transformOrigin={{
+                      vertical: 'top',
+                      horizontal: 'right',
+                    }}
+                    PaperProps={{
+                      elevation: 0,
+                      sx: {
+                        overflow: 'visible',
+                        filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
+                        mt: 1.5,
+                        '& .MuiAvatar-root': {
+                          width: 32,
+                          height: 32,
+                          ml: -0.5,
+                          mr: 1,
+                        },
+                        '&:before': {
+                          content: '""',
+                          display: 'block',
+                          position: 'absolute',
+                          top: 0,
+                          right: 14,
+                          width: 10,
+                          height: 10,
+                          bgcolor: 'background.paper',
+                          transform: 'translateY(-50%) rotate(45deg)',
+                          zIndex: 0,
+                        },
+                      },
+                    }}
+                  >
+                    <MenuItem sx={{ pointerEvents: 'none' }}>
+                      <ListItemIcon>
+                        <Avatar 
+                          sx={{ 
+                            bgcolor: theme.palette.primary.main,
+                            width: 24,
+                            height: 24
+                          }}
+                        >
+                          {firstName ? firstName.charAt(0).toUpperCase() : <PersonIcon fontSize="small" />}
+                        </Avatar>
+                      </ListItemIcon>
+                      <ListItemText 
+                        primary={`${firstName || 'User'} ${lastName || ''}`} 
+                        secondary={role === 'artisan' ? 'Artisan' : 'Customer'}
+                      />
+                    </MenuItem>
+                    <Divider />
+                    
+                    {role === "artisan" && (
+                      <MenuItem onClick={handleNavigateToProfile}>
+                        <ListItemIcon>
+                          <PersonIcon fontSize="small" />
+                        </ListItemIcon>
+                        Profile
+                      </MenuItem>
+                    )}
+                    
+                    <MenuItem onClick={handleNavigateToOrders}>
+                      <ListItemIcon>
+                        <OrderIcon fontSize="small" />
+                      </ListItemIcon>
+                      Orders
+                    </MenuItem>
+                    
+                    <MenuItem onClick={handleNavigateToSettings}>
+                      <ListItemIcon>
+                        <SettingsIcon fontSize="small" />
+                      </ListItemIcon>
+                      Settings
+                    </MenuItem>
+                    
+                    <MenuItem onClick={handleLogout}>
+                      <ListItemIcon>
+                        <LogoutIcon fontSize="small" />
+                      </ListItemIcon>
+                      Logout
+                    </MenuItem>
+                  </Menu>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="text"
+                    onClick={handleNavigateLogin}
+                    sx={{
+                      color: theme.palette.text.primary,
+                      mx: 1,
+                      fontWeight: 500,
+                      '&:hover': {
+                        color: theme.palette.primary.main,
+                        backgroundColor: 'transparent'
+                      }
+                    }}
+                  >
+                    Sign In
+                  </Button>
+                  <Button
+                    variant="contained"
+                    onClick={handleJoinNowClick}
+                    sx={{
+                      ml: 1,
+                      fontWeight: 500,
+                      boxShadow: 'none',
+                      '&:hover': {
+                        boxShadow: 'none',
+                        backgroundColor: theme.palette.primary.dark
+                      }
+                    }}
+                  >
+                    Join Now
+                  </Button>
+                </>
+              )}
+            </Box>
+          </Box>
+        )}
+
+        {/* Mobile Navigation */}
+        {isMobile && (
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            {role !== "artisan" && (
+              <IconButton
+                onClick={() => navigate("/wishlist")}
+                sx={{ color: theme.palette.text.secondary }}
+              >
+                <Badge
+                  badgeContent={wishLength > 0 ? wishLength : null}
+                  color="error"
+                >
+                  <WishlistIcon />
+                </Badge>
+              </IconButton>
+            )}
+            
+            {role !== "artisan" && (
+              <IconButton
+                onClick={() => navigate("/cart")}
+                sx={{ color: theme.palette.text.secondary }}
+              >
+                <Badge
+                  badgeContent={cartLength > 0 ? cartLength : null}
+                  color="primary"
+                >
+                  <ShoppingCartIcon />
+                </Badge>
+              </IconButton>
+            )}
+            
+            <IconButton
+              color="inherit"
+              edge="end"
+              onClick={handleDrawerToggle}
+              sx={{ ml: 1 }}
+            >
+              <MenuIcon />
+            </IconButton>
+            
+            <Drawer
+              anchor="right"
+              open={drawerOpen}
+              onClose={handleDrawerToggle}
+              sx={{
+                '& .MuiDrawer-paper': {
+                  width: 280,
+                  boxSizing: 'border-box',
+                },
+              }}
+            >
+              <Box
+                sx={{
+                  p: 2,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  height: '100%'
+                }}
+              >
+                {userType ? (
+                  <Box sx={{ mb: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                      <Avatar 
+                        sx={{ 
+                          bgcolor: theme.palette.primary.main,
+                          mr: 2
+                        }}
+                      >
+                        {firstName ? firstName.charAt(0).toUpperCase() : <PersonIcon />}
+                      </Avatar>
+                      <Box>
+                        <Typography variant="subtitle1">
+                          {firstName} {lastName}
+                        </Typography>
+                        <Typography variant="caption" color="textSecondary">
+                          {role === 'artisan' ? 'Artisan' : 'Customer'}
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <Divider sx={{ my: 1 }} />
+                  </Box>
+                ) : null}
+                
+                <List>
+                  {role === "artisan" && (
+                    <ListItem button onClick={handleNavigateDashboard}>
+                      <ListItemText primary="Dashboard" />
+                    </ListItem>
+                  )}
+                  
+                  {role !== "artisan" && (
+                    <ListItem button onClick={handleNavigateToProductList}>
+                      <ListItemText primary="Products" />
+                    </ListItem>
+                  )}
+                  
+                  <ListItem button onClick={() => navigate("/artisanlist")}>
+                    <ListItemText primary="Artisans" />
+                  </ListItem>
+                  
+                  {isMobile && (
+                    <ListItem button onClick={() => navigate("/search")}>
+                      <ListItemIcon>
+                        <SearchIcon />
+                      </ListItemIcon>
+                      <ListItemText primary="Search" />
+                    </ListItem>
+                  )}
+                </List>
+                
                 {userType ? (
                   <>
-                    <IconButton
-                      color="inherit"
-                      onClick={handleProfileMenuOpen}
-                      sx={{ color: "black" }}
-                    >
-                      <PersonIcon />
-                    </IconButton>
-                    <Menu
-                      anchorEl={anchorEl}
-                      open={Boolean(anchorEl)}
-                      onClose={handleProfileMenuClose}
-                      sx={{
-                        mt: "45px",
-                      }}
-                    >
+                    <Divider sx={{ my: 1 }} />
+                    <List>
                       {role === "artisan" && (
-                        <MenuItem onClick={handleNavigateToProfile}>
-                          <PersonIcon sx={{ mr: 1 }} /> Profile
-                        </MenuItem>
+                        <ListItem button onClick={handleNavigateToProfile}>
+                          <ListItemIcon>
+                            <PersonIcon />
+                          </ListItemIcon>
+                          <ListItemText primary="Profile" />
+                        </ListItem>
                       )}
-                      <MenuItem onClick={handleNavigateToOrders}>
-                        <OrderIcon sx={{ mr: 1 }} /> Orders
-                      </MenuItem>
-                      <MenuItem onClick={handleNavigateToSettings}>
-                        <SettingsIcon sx={{ mr: 1 }} /> Settings
-                      </MenuItem>
-                      <MenuItem onClick={handleLogout}>
-                        <LogoutIcon sx={{ mr: 1 }} /> Logout
-                      </MenuItem>
-                    </Menu>
+                      
+                      <ListItem button onClick={handleNavigateToOrders}>
+                        <ListItemIcon>
+                          <OrderIcon />
+                        </ListItemIcon>
+                        <ListItemText primary="Orders" />
+                      </ListItem>
+                      
+                      <ListItem button onClick={handleNavigateToSettings}>
+                        <ListItemIcon>
+                          <SettingsIcon />
+                        </ListItemIcon>
+                        <ListItemText primary="Settings" />
+                      </ListItem>
+                      
+                      <ListItem button onClick={handleLogout}>
+                        <ListItemIcon>
+                          <LogoutIcon />
+                        </ListItemIcon>
+                        <ListItemText primary="Logout" />
+                      </ListItem>
+                    </List>
                   </>
                 ) : (
-                  <>
+                  <Box sx={{ mt: 'auto', p: 2 }}>
                     <Button
-                      sx={{
-                        color: "black",
-                        backgroundColor: "white",
-                        "&:hover": {
-                          backgroundColor: "#f0f0f0",
-                        },
-                      }}
+                      fullWidth
+                      variant="outlined"
                       onClick={handleNavigateLogin}
+                      sx={{ mb: 1 }}
                     >
                       Sign In
                     </Button>
                     <Button
+                      fullWidth
+                      variant="contained"
                       onClick={handleJoinNowClick}
-                      sx={{
-                        backgroundColor: theme.palette.primary.main,
-                        color: "white",
-                        ml: 2,
-                        "&:hover": {
-                          backgroundColor: theme.palette.primary.dark,
-                        },
-                      }}
                     >
                       Join Now
                     </Button>
-                  </>
+                  </Box>
                 )}
               </Box>
-            </Box>
-          )}
-        </Toolbar>
-      </AppBar>
+            </Drawer>
+          </Box>
+        )}
+      </Toolbar>
+    </AppBar>
 
-      <UserTypeSelection
-        open={userTypeOpen}
-        onClose={handleCloseUserTypePopup}
-      />
-    </>
+    <UserTypeSelection
+      open={userTypeOpen}
+      onClose={handleCloseUserTypePopup}
+    />
+  </>
   );
 }

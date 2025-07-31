@@ -10,12 +10,25 @@ import {
   IconButton,
   Pagination,
   Typography,
+  Paper,
+  Chip,
+  Tooltip,
+  Avatar,
+  Stack,
+  Skeleton
 } from "@mui/material";
-import { Delete, Edit, ShoppingCart, Sell, Inventory } from "@mui/icons-material";
+import { 
+  Delete, 
+  Edit, 
+  ShoppingCart, 
+  MonetizationOn, 
+  Inventory2,
+  Add,
+  LocalOffer
+} from "@mui/icons-material";
 import Layout from "../layout/Layout";
 import { fetchProductByArtisanId, fetchStaticOfArtisan } from "../../apis/action";
 import { Product, ArtisanStatistics } from "../../apis/interfaces";
-
 import { RootState } from "../../stores/store";
 import { useAppSelector } from "../../stores/storeHooks";
 import CustomBreadcrumbs from "../layout/Breadcrumbs";
@@ -28,6 +41,40 @@ const breadcrumbItems = [
   { label: "Home", href: "/" },
   { label: "Dashboard" },
 ];
+
+const StatCard = ({ icon, title, value, color }: { 
+  icon: React.ReactNode, 
+  title: string, 
+  value: string | number,
+  color: string 
+}) => (
+  <Paper elevation={0} sx={{ 
+    p: 3, 
+    borderRadius: 3,
+    background: `linear-gradient(135deg, ${color}10, ${color}05)`,
+    border: `1px solid ${color}20`,
+    height: '100%'
+  }}>
+    <Stack direction="row" alignItems="center" spacing={2}>
+      <Avatar sx={{ 
+        bgcolor: `${color}15`, 
+        width: 56, 
+        height: 56,
+        '& .MuiSvgIcon-root': { color }
+      }}>
+        {icon}
+      </Avatar>
+      <Box>
+        <Typography variant="subtitle2" color="text.secondary">
+          {title}
+        </Typography>
+        <Typography variant="h4" fontWeight={700}>
+          {value}
+        </Typography>
+      </Box>
+    </Stack>
+  </Paper>
+);
 
 export default function ArtisanDashboard() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -43,19 +90,21 @@ export default function ArtisanDashboard() {
   const id = useAppSelector((state: RootState) => state.user.userInfos.id);
 
   useEffect(() => {
-    const fetchProducts = async () => {
-      const fetchedProducts = await fetchProductByArtisanId(id!);
-      setProducts(fetchedProducts);
-      setLoading(false);
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [fetchedProducts, stats] = await Promise.all([
+          fetchProductByArtisanId(id!),
+          fetchStaticOfArtisan(id!)
+        ]);
+        setProducts(fetchedProducts);
+        setArtisanStats(stats);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    const fetchStatistics = async () => {
-      const stats = await fetchStaticOfArtisan(id!);
-      setArtisanStats(stats);      
-    };
-
-    fetchStatistics();
-    fetchProducts();
+    fetchData();
   }, [id]);
 
   const handleOpenModal = (product?: Product) => {
@@ -70,10 +119,8 @@ export default function ArtisanDashboard() {
 
   const handleSaveProduct = (product: Product) => {
     if (selectedProduct) {
-      // Editing an existing product
       setProducts(products.map((p) => (p._id === product._id ? product : p)));
     } else {
-      // Adding a new product
       setProducts([...products, product]);
     }
     handleCloseModal();
@@ -105,183 +152,306 @@ export default function ArtisanDashboard() {
   const handlePageChange = (_: React.ChangeEvent<unknown>, value: number) => {
     setCurrentPage(value);
   };
+
   return (
     <Layout>
       <CustomBreadcrumbs items={breadcrumbItems} />
 
-      <Container maxWidth="lg" sx={{ mt: 12 }}>
-            {artisanStats && (
-          <Card sx={{ mb: 4 }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-around', mt: 4 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <ShoppingCart sx={{ fontSize: 40, color: '#4caf50', mr: 1 }} />
-                  <Typography variant="h6">{artisanStats.totalOrders} Orders</Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Sell sx={{ fontSize: 40, color: '#ff9800', mr: 1 }} />
-                  <Typography variant="h6">TND {artisanStats.totalSales} Sales</Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Inventory sx={{ fontSize: 40, color: '#2196f3', mr: 1 }} />
-                  <Typography variant="h6">{artisanStats.totalProducts} Products</Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        )}
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 2,
-          }}
-        >
-          <Typography variant="h4">Your Products</Typography>
-          <Button variant="contained" onClick={() => handleOpenModal()}>
-            Add Product
-          </Button>
+      <Container maxWidth="xl" sx={{ py: 4 }}>
+        {/* Header Section */}
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h4" fontWeight={700} gutterBottom>
+            Artisan Dashboard
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Manage your products and view your business performance
+          </Typography>
         </Box>
 
-        {loading ? (
-          <Typography variant="h6">Loading products...</Typography>
-        ) : (
-          <Grid container spacing={4} sx={{ mt: 4 }}>
-            {currentProducts.map((product) => {
-              // Calculate discount price if the product is in promo
-              const discountPrice = product.promo
-                ? product.price - (product.price * (product.discountPercentage || 0)) / 100
-                : product.price;
-
-              return (
-                <Grid item xs={12} md={4} key={product._id}>
-                  <Link
-                    to={`/product/${product._id}`}
-                    state={{ product }}
-                    style={{ textDecoration: "none" }}
-                  >
-                    <Card
-                      sx={{
-                        transition: "0.3s",
-                        "&:hover": {
-                          boxShadow: 6,
-                        },
-                        padding: 3,
-                        border: "1px solid #e0e0e0",
-                        height: "100%",
-                        display: "flex",
-                        flexDirection: "column",
-                        justifyContent: "space-between",
-                        marginBottom: 4,
-                      }}
-                    >
-                      {product.promo && product.discountPercentage && (
-                        <Box
-                          sx={{
-                            position: "absolute",
-                            top: 8,
-                            left: 8,
-                            backgroundColor: "red",
-                            color: "white",
-                            borderRadius: "50%",
-                            width: 40,
-                            height: 40,
-                            display: "flex",
-                            justifyContent: "center",
-                            alignItems: "center",
-                            fontSize: "12px",
-                            fontWeight: "bold",
-                          }}
-                        >
-                          -{product.discountPercentage}%
-                        </Box>
-                      )}
-                      <CardMedia
-                        component="img"
-                        height="200"
-                        image={`${import.meta.env.VITE_API_IMAGE}${product.photos[0]}`}
-                        alt={product.name}
-                        sx={{ objectFit: "cover" }}
-                      />
-                      <CardContent>
-                        <Typography gutterBottom variant="h5" component="div">
-                          {product.name}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {product.description}
-                        </Typography>
-                        {product.promo ? (
-                          <Box>
-                            <Typography
-                              variant="body2"
-                              sx={{ textDecoration: "line-through", color: "red" }}
-                            >
-                              Original Price: ${product.price}
-                            </Typography>
-                            <Typography variant="body2" color="text.primary">
-                              Discounted Price: ${discountPrice.toFixed(2)}
-                            </Typography>
-                            <Typography variant="body2" color="text.primary">
-                              Discount: {product.discountPercentage}% off
-                            </Typography>
-                          </Box>
-                        ) : (
-                          <Typography variant="body2" color="text.secondary">
-                            Price: ${product.price}
-                          </Typography>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </Link>
-                  <Box
-                    sx={{
-                      mt: -8,
-                      display: "flex",
-                      justifyContent: "flex-end",
-                      backgroundColor: "white",
-                      boxShadow: 1,
-                      borderRadius: 1,
-                      border: "1px solid #e0e0e0",
-                      p: 1,
-                    }}
-                  >
-                    <IconButton
-                      onClick={() => handleOpenModal(product)}
-                      sx={{
-                        color: "blue",
-                        "&:hover": { color: "#D4A83A" },
-                        fontSize: "1.5rem",
-                      }}
-                    >
-                      <Edit />
-                    </IconButton>
-                    <IconButton
-                      onClick={() => handleOpenDeleteDialog(product)}
-                      sx={{
-                        color: "red",
-                        "&:hover": { color: "#ff3d00" },
-                        fontSize: "1.5rem",
-                      }}
-                    >
-                      <Delete />
-                    </IconButton>
-                  </Box>
-                </Grid>
-              );
-            })}
+        {/* Statistics Cards */}
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid item xs={12} md={4}>
+            {loading ? (
+              <Skeleton variant="rounded" height={120} />
+            ) : (
+              <StatCard
+                icon={<ShoppingCart fontSize="medium" />}
+                title="Total Orders"
+                value={artisanStats?.totalOrders || 0}
+                color="#4caf50"
+              />
+            )}
           </Grid>
-        )}
+          <Grid item xs={12} md={4}>
+            {loading ? (
+              <Skeleton variant="rounded" height={120} />
+            ) : (
+              <StatCard
+                icon={<MonetizationOn fontSize="medium" />}
+                title="Total Sales"
+                value={`TND ${artisanStats?.totalSales.toLocaleString() || 0}`}
+                color="#ff9800"
+              />
+            )}
+          </Grid>
+          <Grid item xs={12} md={4}>
+            {loading ? (
+              <Skeleton variant="rounded" height={120} />
+            ) : (
+              <StatCard
+                icon={<Inventory2 fontSize="medium" />}
+                title="Products Listed"
+                value={artisanStats?.totalProducts || 0}
+                color="#2196f3"
+              />
+            )}
+          </Grid>
+        </Grid>
 
-        <Box display="flex" justifyContent="center" mt={10} mb={10}>
-          <Pagination
-            count={totalPages}
-            page={currentPage}
-            onChange={handlePageChange}
-            color="primary"
-          />
-        </Box>
+        {/* Products Section */}
+        <Paper elevation={0} sx={{ 
+          p: 4, 
+          borderRadius: 3,
+          border: '1px solid',
+          borderColor: 'divider'
+        }}>
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            mb: 3
+          }}>
+            <Typography variant="h5" fontWeight={600}>
+              Your Products
+            </Typography>
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              onClick={() => handleOpenModal()}
+              sx={{
+                borderRadius: 2,
+                px: 3,
+                py: 1,
+                textTransform: 'none',
+                fontWeight: 600,
+                boxShadow: 'none',
+                '&:hover': {
+                  boxShadow: 'none'
+                }
+              }}
+            >
+              Add Product
+            </Button>
+          </Box>
 
+          {loading ? (
+            <Grid container spacing={3}>
+              {[...Array(3)].map((_, index) => (
+                <Grid item xs={12} sm={6} md={4} key={index}>
+                  <Skeleton variant="rounded" height={350} />
+                </Grid>
+              ))}
+            </Grid>
+          ) : products.length === 0 ? (
+            <Box sx={{ 
+              textAlign: 'center', 
+              p: 6,
+              border: '1px dashed',
+              borderColor: 'divider',
+              borderRadius: 2
+            }}>
+              <Inventory2 sx={{ fontSize: 60, color: 'text.disabled', mb: 2 }} />
+              <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
+                No products found
+              </Typography>
+              <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                You haven't added any products yet. Start by adding your first product.
+              </Typography>
+              <Button
+                variant="contained"
+                startIcon={<Add />}
+                onClick={() => handleOpenModal()}
+                sx={{ borderRadius: 2 }}
+              >
+                Add Product
+              </Button>
+            </Box>
+          ) : (
+            <>
+              <Grid container spacing={3}>
+                {currentProducts.map((product) => {
+                  const discountPrice = product.promo
+                    ? product.price - (product.price * (product.discountPercentage || 0)) / 100
+                    : product.price;
+
+                  return (
+                    <Grid item xs={12} sm={6} md={4} key={product._id}>
+                      <Card sx={{ 
+                        height: '100%', 
+                        display: 'flex', 
+                        flexDirection: 'column',
+                        transition: 'transform 0.3s, box-shadow 0.3s',
+                        '&:hover': {
+                          transform: 'translateY(-5px)',
+                          boxShadow: 3
+                        },
+                        position: 'relative',
+                        overflow: 'hidden',
+                        borderRadius: 2
+                      }}>
+                        {product.promo && (
+                          <Chip
+                            label={`${product.discountPercentage}% OFF`}
+                            color="error"
+                            size="small"
+                            icon={<LocalOffer fontSize="small" />}
+                            sx={{
+                              position: 'absolute',
+                              top: 12,
+                              left: 12,
+                              zIndex: 1,
+                              fontWeight: 600
+                            }}
+                          />
+                        )}
+                        
+                        <Link
+                          to={`/product/${product._id}`}
+                          state={{ product }}
+                          style={{ textDecoration: "none", color: 'inherit' }}
+                        >
+                          <CardMedia
+                            component="img"
+                            height="200"
+                            image={`${import.meta.env.VITE_API_IMAGE}${product.photos[0]}`}
+                            alt={product.name}
+                            sx={{ 
+                              objectFit: "cover",
+                              transition: 'transform 0.3s',
+                              '&:hover': {
+                                transform: 'scale(1.05)'
+                              }
+                            }}
+                          />
+                          <CardContent sx={{ flexGrow: 1 }}>
+                            <Typography 
+                              gutterBottom 
+                              variant="h6" 
+                              component="div" 
+                              noWrap
+                              fontWeight={600}
+                            >
+                              {product.name}
+                            </Typography>
+                            <Typography 
+                              variant="body2" 
+                              color="text.secondary" 
+                              sx={{
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden',
+                                mb: 2,
+                                minHeight: 40
+                              }}
+                            >
+                              {product.description}
+                            </Typography>
+                            <Box sx={{ mt: 'auto' }}>
+                              {product.promo ? (
+                                <Stack direction="row" spacing={1} alignItems="baseline">
+                                  <Typography
+                                    variant="body2"
+                                    sx={{ 
+                                      textDecoration: "line-through", 
+                                      color: "text.secondary"
+                                    }}
+                                  >
+                                    TND {product.price.toFixed(2)}
+                                  </Typography>
+                                  <Typography 
+                                    variant="h6" 
+                                    color="primary"
+                                    fontWeight={700}
+                                  >
+                                    TND {discountPrice.toFixed(2)}
+                                  </Typography>
+                                </Stack>
+                              ) : (
+                                <Typography 
+                                  variant="h6" 
+                                  color="primary"
+                                  fontWeight={700}
+                                >
+                                  TND {product.price.toFixed(2)}
+                                </Typography>
+                              )}
+                            </Box>
+                          </CardContent>
+                        </Link>
+                        
+                        <Box sx={{ 
+                          p: 1.5, 
+                          display: 'flex', 
+                          justifyContent: 'flex-end',
+                          borderTop: '1px solid',
+                          borderColor: 'divider',
+                          background: 'rgba(0, 0, 0, 0.02)'
+                        }}>
+                          <Tooltip title="Edit Product" arrow>
+                            <IconButton
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenModal(product);
+                              }}
+                              color="primary"
+                              size="medium"
+                              sx={{ mr: 1 }}
+                            >
+                              <Edit fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Delete Product" arrow>
+                            <IconButton
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenDeleteDialog(product);
+                              }}
+                              color="error"
+                              size="medium"
+                            >
+                              <Delete fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      </Card>
+                    </Grid>
+                  );
+                })}
+              </Grid>
+
+              {totalPages > 1 && (
+                <Box display="flex" justifyContent="center" mt={4}>
+                  <Pagination
+                    count={totalPages}
+                    page={currentPage}
+                    onChange={handlePageChange}
+                    color="primary"
+                    shape="rounded"
+                    size="large"
+                    sx={{
+                      '& .MuiPaginationItem-root': {
+                        fontWeight: 600
+                      }
+                    }}
+                  />
+                </Box>
+              )}
+            </>
+          )}
+        </Paper>
+
+        {/* Modals */}
         <DeleteConfirmationDialog
           open={isDeleteDialogOpen}
           onClose={handleCloseDeleteDialog}
