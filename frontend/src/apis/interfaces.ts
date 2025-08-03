@@ -13,17 +13,50 @@ export interface UserRegister {
   role: string;
   email: string;
   phone: number;
-  adress: string;
+  address: string;
   company_name: string;
 }
 export interface UserInfo {
+  _id : string;
   firstname: string;
   lastname: string;
+  password: string;
   role: string;
   email: string;
   phone: number;
-  adress: string;
+  address: string;
   company_name: string;
+  avatar : string;
+  shopDescription : string;
+  isVerified : boolean ;
+}
+export interface AdminInfo {
+  _id : string;
+  firstname: string;
+  lastname: string;
+  password: string;
+  role: string;
+  email: string;
+  phone: number;
+  address: string;
+  company_name: string;
+  avatar : string;
+  shopDescription : string;
+  isVerified : boolean ;
+}
+export interface UsersInfo {
+  _id : string;
+  firstname: string;
+  lastname: string;
+  password: string;
+  role: string;
+  email: string;
+  phone: string;
+  address: string;
+  company_name: string;
+  avatar : string;
+  shopDescription : string;
+  isVerified : boolean ;
 }
 
 export interface UserConnectForm {
@@ -61,6 +94,37 @@ export interface ArtisanInfo {
   lastname : string ;
   email : string ; 
   company_name : string ; 
+  address : string , 
+  phone : string ,
+  avatar : string , 
+  shopDescription : string ; 
+  isVerified : boolean ;
+}
+export interface SelcteArtisanInfo {
+  id : string ; 
+  firstname : string ;
+  lastname : string ;
+  email : string ; 
+  company_name : string ; 
+  address : string , 
+  phone : string ,
+  avatar : string , 
+  shopDescription : string ; 
+  isVerified : boolean ;
+}
+
+export interface SelcteUserInfo {
+  id : string ; 
+  firstname : string ;
+  lastname : string ;
+  email : string ; 
+  company_name : string ; 
+  address : string ,
+  role : string, 
+  phone : string ,
+  avatar : string , 
+  shopDescription : string ; 
+  isVerified : boolean ;
 }
 export interface Product {
   _id: string;
@@ -72,7 +136,9 @@ export interface Product {
   stock: number;
   category:CategoryItem
   size?: any;
-  createdAt: string;
+  promo: boolean
+  discountPercentage: number ;
+  createdAt: number;  
 }
 export interface WishlistResponse {
   status: number;
@@ -83,23 +149,38 @@ export interface wishlists {
   client: string;
   products: any;
 }
-
-export interface wishlist {
+export interface wishlistProduct {
   _id: string;
-  client: string;
-  products: string[];
+  photos: string[];
+  name: string;
+  price: number;
+  stock: number;
+}
+export interface wishlistItem {
+  productId: string;
+  photos: string[];
+  name: string;
+  price: number;
+  stock: number;
+}
+export interface wishlistResponseItem {
+  productId: string;
+}
+export interface wishlist {
+  products: wishlistResponseItem[]; 
+  wishLength : number ; 
 }
 
 
-export interface ListsState {
-  wishlistLength: number;
-  cartLength: number;
-  wishlistProductLimit: number;
-  cartProductLimit: number;
+export interface CartProductResponse {
+  productId: string;
+  quantity: number;
 }
-
 export interface CartProduct {
   productId: string;
+  photos: string[],
+  name: string,
+  price: number,
   quantity: number;
 }
 
@@ -122,6 +203,18 @@ export interface CartItem {
   quantity: number;
   _id: string;
 }
+export interface CartItemSlice {
+  productId: string; 
+  quantity: number;
+}
+
+export interface CartListSlice {
+  products: CartItemSlice[];
+  totalPrice: number;
+  cartLength: number;
+}
+
+
 export interface ReviewsItem {
   clientId: string;
   firstname: string;
@@ -136,25 +229,57 @@ export interface ReviewsData {
   reviewDate: Date;
 }
 
-export interface DeliveryAddress {
-  firstname: string;
-  lastname: string;
-  address: string;
-  zipCode: string;
-  country :string
+export interface  Order {
+  _id: string;
+  client_id: string;
+  date_commande: string;
+  statut: 'en cours' | 'expédiée' | 'livrée' | 'annulée';
+  montant_total: number;
+  details: OrderDetail[];
+  delivery_address: DeliveryAddress[];
+  createdAt: string
+
 }
 
 export interface OrderDetail {
-  produit_id: string;
+  produit_id: Product;
   quantité: number;
   prix_unitaire: number;
+  accepte : "en cours"| "accepte"| "annulée"
 }
 
-export interface Order {
-  _id: string;
-  clientId: ReviewsItem; 
-  statut: "en cours" | "expédiée" | "livrée" | "annulée"; 
-  montant_total: number;
-  details: OrderDetail[]; 
-  delivery_address: DeliveryAddress[]; 
+export interface DeliveryAddress {
+  firstname?: string;
+  lastname?: string;
+  address?: string;
+  country?: string;
+  zipCode?: string;
+  phone : number;
+}
+export interface ArtisanInfoThisMonth {
+  artisanId: string;
+  artisanName: string;
+  totalSales: number;
+  artisanPhoto : string;
+}
+
+export interface ArtisanStatistics {
+  totalProducts: number;
+  totalOrders: number;
+  totalSales: number;
+  bestSellingProducts: {
+    _id: string;
+    productName: string;
+    totalSold: number;
+  }[];
+  orderStatistics: {
+    _id: string; 
+    count: number;
+  }[];
+}
+
+export interface RevenueData {
+  dailyRevenue: Record<string, number>;
+  weeklyRevenue: Record<string, number>;
+  monthlyRevenue: Record<string, number>;
 }

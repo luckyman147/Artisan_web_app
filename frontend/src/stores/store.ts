@@ -3,21 +3,23 @@ import { persistStore, persistReducer } from 'redux-persist';
 import storage from 'redux-persist/lib/storage'; 
 import userReducer from './slice/userSlice';
 import userTypeReducer from './slice/userTypeSlice';
-import listsReducer from "./slice/listsSlice";
+import wishlistsReducer from "./slice/wishSlice";
+import cartlistsReducer from "./slice/cartSlice";
+
 
 
 // Persist configuration
 const persistConfig = {
   key: 'root',
   storage,
-  whitelist: ['user', 'userType'],
+  whitelist: ['user', 'userType', 'wishlist',"cart"], 
 };
-
 // Combine reducers
 const rootReducer = combineReducers({
   user: userReducer,
   userType: userTypeReducer,
-  lists: listsReducer,
+  wish: wishlistsReducer,
+  cart : cartlistsReducer,
 });
 
 // Create a persisted reducer

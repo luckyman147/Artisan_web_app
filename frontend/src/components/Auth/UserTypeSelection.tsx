@@ -116,7 +116,7 @@ export default function UserTypeSelection({ open, onClose }: UserTypeSelectionPr
         </div>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} color="secondary">
+        <Button onClick={onClose} sx={{color : "red"}}>
           Close
         </Button>
       </DialogActions>
