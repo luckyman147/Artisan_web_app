@@ -27,3 +27,9 @@ E-commerce web application for artisan products.
 - /api/orders - Order management
 - /api/reviews - Product reviews
 - /api/messages - Messaging
+## Why This Project Stands Out
+
+- **Artisan Marketplace** - Unique platform for handmade and crafted products
+- **Full E-Commerce** - Cart, checkout, payments, reviews, and messaging
+- **Image Upload** - Cloudinary integration for beautiful product photos
+- **Real-Time Chat** - Buyers and sellers connect instantly
