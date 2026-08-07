@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Button,
   Checkbox,
@@ -14,6 +14,8 @@ import {
   Dialog,
   DialogContent,
   DialogActions,
+  Container,
+  Paper,
 } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import { FcGoogle } from "react-icons/fc";
@@ -23,21 +25,24 @@ import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { setLogin, userLogin } from "../../stores/slice/userSlice";
 import { CartProductResponse, UserConnectForm, UserInfos } from "../../apis/interfaces";
-import back from "../../assets/images/blob-scene-haikei login.svg";
 import ForgotPassword from "./ForgotPassword";
 import UserTypeSelection from "./UserTypeSelection";
 import { addCart, addWishList } from "../../apis/action";
 import { AppDispatch, RootState } from "../../stores/store";
 import { useDispatch } from "react-redux";
-import Dashboard from "../Admin/components/Layout";
 
 export default function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [openForgotPassword, setOpenForgotPassword] = useState(false);
   const [openUserType, setOpenUserType] = useState(false);
-  const dispatch = useDispatch<AppDispatch>(); 
+  const [error, setError] = useState<string | null>(null);
+  const [isError, setIsError] = useState(false);
+  
+  const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
+  const wishlist = useAppSelector((state: RootState) => state.wish);
+  const cart = useAppSelector((state: RootState) => state.cart);
 
   const {
     register,
@@ -45,27 +50,17 @@ export default function Login() {
     formState: { errors },
   } = useForm<UserConnectForm>();
 
-  const [error, setError] = useState<string | null>(null);
-  const [isError, setIsError] = useState<boolean>(false);
-
-  const handleShowPassword = () => setShowPassword((prev) => !prev);
-  const wishlist = useAppSelector((state: RootState) => state.wish);
-  const cart = useAppSelector((state: RootState) => state.cart);
-
   const onSubmit = async (values: UserConnectForm) => {
     setError(null);
     setIsError(false);
   
     try {
-      // Attempt to login with the provided email and password
-      const data: UserInfos | undefined = await dispatch(userLogin(values.email, values.password))
+      const data: UserInfos | undefined = await dispatch(userLogin(values.email, values.password));
   
       if (data) {
-        // Dispatch the login action and store user data in Redux
         dispatch(setLogin(data));
   
         if (data.id) {
-          // Create cart products based on existing cart state
           const cartProducts: CartProductResponse[] = cart.products.map(
             (product) => ({
               productId: product.productId,
@@ -73,28 +68,24 @@ export default function Login() {
             })
           );
   
-          // Add cart products to the server if there are any in the cart
           if (cartProducts.length > 0) {
             await addCart(data.id, cartProducts);
           }
   
-          // Add wishlist products to the server if any exist in the wishlist
           if (wishlist.products.length > 0) {
             const wishProducts = wishlist.products.map((productId) => ({
               productId
             }));
-  
             await addWishList(data.id, wishProducts);
           }
         }
   
-        // Redirect user based on their role
         if (data.role === "user") {
           navigate("/products");
         } else if (data.role === "artisan") {
           navigate("/dashboard");
-        }else if(data.role === "Admin"){
-            navigate("/Admin_dashboard")
+        } else if (data.role === "Admin") {
+          navigate("/Admin_dashboard");
         }
       } else {
         setError("Username or password incorrect!");
@@ -106,13 +97,12 @@ export default function Login() {
       setIsError(true);
     }
   };
-  
-  const handleFacebookLogin = () => {
-    window.open(import.meta.env.VITE_AUTH_FACEBOOK, "_self");
-  };
 
-  const handleGoogleLogin = () => {
-    window.open(import.meta.env.VITE_AUTH_GooGle, "_self");
+  const handleSocialLogin = (provider: "facebook" | "google") => {
+    const url = provider === "facebook" 
+      ? process.env.VITE_AUTH_FACEBOOK 
+      : process.env.VITE_AUTH_GOOGLE;
+    window.open(url || "/", "_self");
   };
 
   useEffect(() => {
@@ -131,227 +121,169 @@ export default function Login() {
       );
       navigate("/home");
     }
-  }, [dispatch]);
-
-  const handleOpenForgotPassword = () => setOpenForgotPassword(true);
-  const handleCloseForgotPassword = () => setOpenForgotPassword(false);
-
-  const handleOpenUserType = () => setOpenUserType(true);
-  const handleCloseUserType = () => setOpenUserType(false);
+  }, [dispatch, navigate]);
 
   return (
-    <Grid
-      position={"relative"}
-      container
-      justifyContent="center"
-      alignItems="center"
-      style={{
-        height: "100vh",
-        width: "100%",
-        backgroundImage: `url(${back})`,
-        backgroundSize: "cover",
-        backgroundRepeat: "no-repeat",
-        backgroundPosition: "center",
+    <Container 
+      maxWidth="sm" 
+      sx={{ 
+        py: 4,
+        mt: 9, // Added 40px margin top (MUI spacing: 1 = 8px, so 5 = 40px)
       }}
     >
-      <Grid item xs={12} md={4}>
-        <Box
-          sx={{
-            p: 4,
-            backgroundColor: "#ffffff",
-            borderRadius: "8px",
-            boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
-            border: "1px solid #e0e0e0",
-            width: "100%",
-            boxSizing: "border-box",
-          }}
-        >
-          <Typography
-            variant="h4"
-            gutterBottom
-            align="center"
-            sx={{ fontFamily: "Poppins, sans-serif" }}
-          >
-            Log in
+      <Paper elevation={3} sx={{ 
+        p: { xs: 2, md: 4 },
+        borderRadius: 3,
+        background: 'linear-gradient(145deg, #ffffff, #f8f9fa)',
+        boxShadow: '0 8px 32px rgba(31, 38, 135, 0.1)'
+      }}>
+        <Box textAlign="center" mb={4}>
+          <Typography variant="h4" fontWeight="bold" color="primary" gutterBottom>
+            Welcome Back
           </Typography>
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <Box sx={{ width: "100%", mb: 2 }}>
-              <TextField
-                label="Email"
-                type="email"
-                {...register("email", { required: "Email is required" })}
-                fullWidth
-                margin="normal"
-                variant="outlined"
-                color="primary"
-                error={!!errors.email}
-                helperText={errors.email ? errors.email.message : ""}
-              />
-            </Box>
-            <Box sx={{ width: "100%", mb: 2 }}>
-              <TextField
-                label="Password"
-                type={showPassword ? "text" : "password"}
-                {...register("password", { required: "Password is required" })}
-                fullWidth
-                margin="normal"
-                variant="outlined"
-                color="primary"
-                error={!!errors.password}
-                helperText={errors.password ? errors.password.message : ""}
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton onClick={handleShowPassword} edge="end">
-                        {showPassword ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-              />
-              <Typography
-                variant="caption"
-                color="textSecondary"
-                gutterBottom
-                align="left"
-                sx={{ display: "block", mt: 0 }}
-              >
-                Use 8 or more characters with a mix of letters, numbers &
-                symbols
-              </Typography>
-            </Box>
+          <Typography color="text.secondary">
+            Log in to your account to continue
+          </Typography>
+        </Box>
+
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <TextField
+            label="Email"
+            type="email"
+            {...register("email", { required: "Email is required" })}
+            fullWidth
+            margin="normal"
+            error={!!errors.email}
+            helperText={errors.email?.message}
+            sx={{ mb: 2, borderRadius: 2 }}
+          />
+
+          <TextField
+            label="Password"
+            type={showPassword ? "text" : "password"}
+            {...register("password", { required: "Password is required" })}
+            fullWidth
+            margin="normal"
+            error={!!errors.password}
+            helperText={errors.password?.message}
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
+                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+            sx={{ mb: 1, borderRadius: 2 }}
+          />
+
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
             <FormControlLabel
               control={
                 <Checkbox
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
+                  color="primary"
                 />
               }
               label="Remember me"
             />
-            <Button
-              type="submit"
-              variant="contained"
-              color="primary"
-              fullWidth
-              sx={{ mt: 2, borderRadius: 32 }}
-            >
-              Log in
-            </Button>
-            {isError && error && (
-              <Typography
-                variant="body2"
-                color="error"
-                align="center"
-                sx={{ mt: 2 }}
-              >
-                {error}
-              </Typography>
-            )}
             <Link
-              onClick={handleOpenForgotPassword}
+              onClick={() => setOpenForgotPassword(true)}
               variant="body2"
-              color="textPrimary"
-              align="center"
-              display="block"
-              mt={2}
-              sx={{
-                fontWeight: "600",
-                fontFamily: "Poppins, sans-serif",
-                cursor: "pointer",
-              }}
+              color="primary"
+              sx={{ fontWeight: 600, cursor: 'pointer' }}
             >
-              Forget your password?
+              Forgot password?
             </Link>
-            <Typography
-              variant="body2"
-              color="textPrimary"
-              align="center"
-              display="block"
-              sx={{ fontFamily: "Poppins, sans-serif", mt: 1 }}
-            >
-              Don't have an account?{" "}
-              <Link
-                onClick={handleOpenUserType}
-                sx={{ fontWeight: "600", cursor: "pointer" }}
-              >
-                Sign up
-              </Link>
-            </Typography>
-            <Box sx={{ display: "flex", alignItems: "center", mb: 2, mt: 3 }}>
-              <Divider sx={{ flexGrow: 1, borderColor: "text.secondary" }} />
-              <Typography variant="body2" color="textSecondary" sx={{ mx: 2 }}>
-                Or sign in with
-              </Typography>
-              <Divider sx={{ flexGrow: 1, borderColor: "text.secondary" }} />
-            </Box>
-            <Grid container spacing={2} justifyContent="center">
-              <Grid item>
-                <Button
-                  variant="outlined"
-                  startIcon={<Facebook02Icon />}
-                  sx={{
-                    borderColor: "#3b5998",
-                    color: "#3b5998",
-                    borderRadius: "50%",
-                    height: 48,
-                    width: 48,
-                    minWidth: 0,
-                    paddingLeft: 3,
-                    backgroundColor: "#ffffff",
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    svg: { fontSize: 24 },
-                  }}
-                  onClick={handleFacebookLogin}
-                />
-              </Grid>
-              <Grid item>
-                <Button
-                  variant="outlined"
-                  startIcon={<FcGoogle />}
-                  sx={{
-                    borderColor: "#db4437",
-                    color: "#db4437",
-                    borderRadius: "50%",
-                    height: 48,
-                    width: 48,
-                    minWidth: 0,
-                    paddingLeft: 3,
-                    backgroundColor: "#ffffff",
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    svg: { fontSize: 24 },
-                  }}
-                  onClick={handleGoogleLogin}
-                />
-              </Grid>
-            </Grid>
-          </form>
-        </Box>
-      </Grid>
+          </Box>
 
-      {/* Forgot Password Dialog */}
-      <Dialog
-        open={openForgotPassword}
-        onClose={handleCloseForgotPassword}
-        maxWidth="sm"
-        fullWidth
-      >
+          <Button
+            type="submit"
+            variant="contained"
+            color="primary"
+            fullWidth
+            size="large"
+            sx={{
+              py: 1.5,
+              borderRadius: 2,
+              fontWeight: "bold",
+              background: 'linear-gradient(45deg, #1976d2, #2196f3)',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+              mb: 2
+            }}
+          >
+            Log In
+          </Button>
+
+          {isError && error && (
+            <Typography color="error" align="center" sx={{ mb: 2 }}>
+              {error}
+            </Typography>
+          )}
+
+          <Divider sx={{ my: 3 }}>
+            <Typography color="text.secondary">OR</Typography>
+          </Divider>
+
+          <Grid container spacing={2} justifyContent="center" mb={3}>
+            <Grid item>
+              <IconButton
+                onClick={() => handleSocialLogin("facebook")}
+                sx={{
+                  bgcolor: "#1877F2",
+                  color: "white",
+                  "&:hover": { bgcolor: "#166FE5" },
+                  width: 48,
+                  height: 48
+                }}
+              >
+                <Facebook02Icon />
+              </IconButton>
+            </Grid>
+            <Grid item>
+              <IconButton
+                onClick={() => handleSocialLogin("google")}
+                sx={{
+                  bgcolor: "white",
+                  border: "1px solid #e0e0e0",
+                  "&:hover": { bgcolor: "#f5f5f5" },
+                  width: 48,
+                  height: 48
+                }}
+              >
+                <FcGoogle size={24} />
+              </IconButton>
+            </Grid>
+          </Grid>
+
+          <Typography textAlign="center" color="text.secondary">
+            Don't have an account?{" "}
+            <Link 
+              onClick={() => setOpenUserType(true)} 
+              color="primary" 
+              fontWeight="bold"
+              sx={{ cursor: 'pointer' }}
+            >
+              Sign up
+            </Link>
+          </Typography>
+        </form>
+      </Paper>
+
+      <Dialog open={openForgotPassword} onClose={() => setOpenForgotPassword(false)}>
         <DialogContent>
           <ForgotPassword />
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseForgotPassword} color="secondary">
+          <Button onClick={() => setOpenForgotPassword(false)} color="primary">
             Close
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* User Type Selection Dialog */}
-      <UserTypeSelection open={openUserType} onClose={handleCloseUserType} />
-    </Grid>
+      <UserTypeSelection open={openUserType} onClose={() => setOpenUserType(false)} />
+    </Container>
   );
 }

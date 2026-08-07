@@ -10,10 +10,10 @@ export const createCart = async (req, res) => {
       return res.status(400).json({ error: "No products provided" });
     }
 
-    const user = await User.findById(client);
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
+    // const user = await User.findById(client);
+    // if (!user) {
+    //   return res.status(404).json({ error: "User not found" });
+    // }
 
     let totalPrice = 0;
 
@@ -59,13 +59,13 @@ export const createCart = async (req, res) => {
 
       cart.totalPrice = 0;
       for (const product of cart.products) {
-        const prod = await Product.findById(product.productId);
+        // const prod = await Product.findById(product.productId);
 
-        if (!prod) {
-          return res
-            .status(400)
-            .json({ error: `Product with ID ${product.productId} not found` });
-        }
+        // if (!prod) {
+        //   return res
+        //     .status(400)
+        //     .json({ error: `Product with ID ${product.productId} not found` });
+        // }
 
         const price = prod.promo
           ? prod.price * (1 - prod.discountPercentage / 100)

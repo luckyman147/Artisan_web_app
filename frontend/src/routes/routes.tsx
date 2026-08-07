@@ -100,7 +100,6 @@ const Navigation = () => {
       <Route path="/products" element={<ProductList />} />
       <Route path="/dashboard" element={<PrivateRoute><ArtisanDashboard /></PrivateRoute>} />
       <Route path="/product/:id" element={<ProductDetails />} />
-
       <Route path="/Wishlist" element={<Wishlist />} />
       <Route path="/cart" element={<Cart />} />
       <Route path="/checkout" element={<Checkout />} />
@@ -109,8 +108,6 @@ const Navigation = () => {
       <Route path="/artisan/profile/:userId" element={<ArtisanProfile />} />
       <Route path="/settings" element={<UserSetting />} />
       <Route path="/artisanlist" element={<ArtisanList />} />
-
- 
       {/* Admin Routes */}
       <Route
         path="/Admin_dashboard"
